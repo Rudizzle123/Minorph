@@ -1,0 +1,3408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Minorph</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+
+<!-- ═══════════════════════════════════════════
+     SUPABASE — paste your project URL and anon key here
+═══════════════════════════════════════════ -->
+<script>
+  const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════════════════════════ */
+:root {
+  --bg:             #080810;
+  --surface:        #0f0f1a;
+  --surface2:       #141424;
+  --surface3:       #1a1a2e;
+  --purple:         #9b5de5;
+  --purple-light:   #c77dff;
+  --purple-dim:     rgba(155,93,229,0.14);
+  --purple-border:  rgba(155,93,229,0.22);
+  --green:          #2dc653;
+  --green-light:    #57f288;
+  --green-dim:      rgba(45,198,83,0.14);
+  --green-border:   rgba(45,198,83,0.22);
+  --red:            #ff6b6b;
+  --red-dim:        rgba(255,107,107,0.14);
+  --text:           #f0eeff;
+  --text-dim:       #b8b4d0;
+  --muted:          #7777aa;
+  --border:         rgba(155,93,229,0.14);
+  --card-grad:      linear-gradient(135deg, #1a0f2e 0%, #0d1a14 100%);
+  --card-grad-g:    linear-gradient(135deg, #0d1a14 0%, #0a1520 100%);
+  --progress-grad:  linear-gradient(90deg, var(--purple), var(--green-light));
+  --font-head:      'Syne', sans-serif;
+  --font-body:      'DM Sans', sans-serif;
+  --safe-bottom:    env(safe-area-inset-bottom, 0px);
+  --nav-h:          64px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESET + BASE
+══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Noise grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+button { font-family: var(--font-body); cursor: pointer; border: none; background: none; color: inherit; }
+input, select { font-family: var(--font-body); }
+a { color: inherit; text-decoration: none; }
+
+/* ══════════════════════════════════════════════════════════
+   AUTH SCREEN
+══════════════════════════════════════════════════════════ */
+#auth-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 32px;
+  gap: 0;
+}
+
+.auth-logo {
+  margin-bottom: 12px;
+}
+
+.auth-wordmark {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.auth-tagline {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 48px;
+  letter-spacing: 0.04em;
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.auth-input:focus {
+  border-color: var(--purple);
+}
+
+.auth-input::placeholder { color: var(--muted); }
+
+.auth-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--purple), #6b3fa0);
+  color: var(--text);
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
+}
+
+.auth-btn:active { transform: scale(0.98); }
+.auth-btn:disabled { opacity: 0.5; }
+
+.auth-error {
+  font-size: 0.78rem;
+  color: var(--red);
+  text-align: center;
+  min-height: 18px;
+}
+
+.auth-switch {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 16px;
+}
+
+.auth-switch span {
+  color: var(--purple-light);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* ══════════════════════════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════════════════════════ */
+#app {
+  display: none;
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SCREENS
+══════════════════════════════════════════════════════════ */
+.screen {
+  display: none;
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  min-height: 100vh;
+  animation: screenIn 0.22s ease;
+}
+
+.screen.active { display: block; }
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   HEADER
+══════════════════════════════════════════════════════════ */
+.app-header {
+  padding: 52px 20px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: rgba(8,8,16,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 50;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.header-logo-text {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header-subtitle {
+  font-size: 0.64rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.header-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--purple-dim);
+  border: 1px solid var(--purple-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--purple-light);
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LOADING SPINNER
+══════════════════════════════════════════════════════════ */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.spinner {
+  width: 28px; height: 28px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════════════════════
+   EMPTY STATE
+══════════════════════════════════════════════════════════ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  gap: 10px;
+}
+
+.empty-icon { font-size: 2.4rem; opacity: 0.6; }
+.empty-title { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+.empty-sub { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+/* ══════════════════════════════════════════════════════════
+   SECTION TITLE
+══════════════════════════════════════════════════════════ */
+.section-title {
+  font-family: var(--font-head);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  padding: 0 20px;
+  margin: 24px 0 10px;
+}
+
+.page-title {
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  font-weight: 800;
+  padding: 20px 20px 2px;
+  letter-spacing: -0.02em;
+}
+
+.page-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0 20px 16px;
+  line-height: 1.5;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PILLS
+══════════════════════════════════════════════════════════ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.pill-green  { background: var(--green-dim);  color: var(--green-light); }
+.pill-red    { background: var(--red-dim);    color: var(--red); }
+.pill-purple { background: var(--purple-dim); color: var(--purple-light); }
+.pill-muted  { background: rgba(119,119,170,0.12); color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════
+   ── DASHBOARD ──
+══════════════════════════════════════════════════════════ */
+
+/* Hero balance */
+.hero {
+  padding: 20px 20px 24px;
+  position: relative;
+}
+
+.hero-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.hero-amount {
+  font-family: var(--font-head);
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text) 0%, var(--purple-light) 60%, var(--green-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.hero-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Account cards */
+.card {
+  margin: 0 20px 10px;
+  border-radius: 20px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--card-grad);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.card:active { transform: scale(0.99); }
+
+.card.green-tint {
+  border-color: var(--green-border);
+  background: var(--card-grad-g);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(155,93,229,0.06) 0%, rgba(45,198,83,0.06) 100%);
+  pointer-events: none;
+}
+
+.card.green-tint::before {
+  background: linear-gradient(135deg, rgba(45,198,83,0.07) 0%, rgba(155,93,229,0.04) 100%);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.card-name {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.card-balance {
+  font-family: var(--font-head);
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.bal-purple { color: var(--purple-light); }
+.bal-green  { color: var(--green-light); }
+
+.card-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.badge-p { background: var(--purple-dim); }
+.badge-g { background: var(--green-dim); }
+
+.card-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.05);
+  margin: 0 0 14px;
+}
+
+.card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.card-stats.three-col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.stat-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.stat-val {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.val-green  { color: var(--green-light); }
+.val-red    { color: var(--red); }
+.val-purple { color: var(--purple-light); }
+.val-white  { color: var(--text); }
+.val-muted  { color: var(--muted); }
+
+/* Commission income bar */
+.income-bar {
+  margin: 0 20px 10px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+}
+
+.income-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.income-label { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+.income-val   { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+
+.bar-track {
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 100px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--green), var(--green-light));
+  transition: width 0.8s ease;
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--muted);
+  align-items: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ── TRANSACTIONS ──
+══════════════════════════════════════════════════════════ */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--muted);
+  background: transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.filter-chip.active {
+  background: var(--purple-dim);
+  border-color: var(--purple-border);
+  color: var(--purple-light);
+}
+
+/* Account toggle */
+.account-select-wrap {
+  padding: 0 20px 12px;
+}
+
+.account-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 0.82rem;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.account-select option {
+  background: var(--surface2);
+}
+
+/* Transaction list */
+.txn-list {
+  padding: 0 20px;
+}
+
+.txn-group-date {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  padding: 16px 0 8px;
+}
+
+.txn-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+
+.txn-item:last-child { border-bottom: none; }
+.txn-item:active { opacity: 0.7; }
+
+.txn-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.txn-info { flex: 1; min-width: 0; }
+
+.txn-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.txn-meta {
+  font-size: 0.66rem;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.txn-type-badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.07);
+  color: var(--muted);
+}
+
+.txn-amount {
+  font-family: var(--font-head);
+  font-size: 0.88rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ── SUBSCRIPTIONS ──
+══════════════════════════════════════════════════════════ */
+.approval-banner {
+  margin: 0 20px 12px;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(199,125,255,0.1), rgba(45,198,83,0.05));
+  border: 1px solid rgba(199,125,255,0.22);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.approval-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.approval-text { flex: 1; }
+.approval-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--purple-light);
+  margin-bottom: 2px;
+}
+.approval-sub { font-size: 0.66rem; color: var(--muted); }
+
+.approval-btn {
+  background: var(--purple-dim);
+  border: 1px solid var(--purple-border);
+  color: var(--purple-light);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.approval-btn:hover { background: rgba(155,93,229,0.22); }
+
+.sub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 20px;
+}
+
+.sub-card {
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 14px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s;
+}
+
+.sub-card:active { transform: scale(0.97); }
+
+.sub-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(155,93,229,0.05) 0%, rgba(45,198,83,0.05) 100%);
+  pointer-events: none;
+}
+
+.sub-icon  { font-size: 1.3rem; margin-bottom: 8px; }
+.sub-name  { font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; }
+.sub-amount { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+.sub-cycle { font-size: 0.6rem; color: var(--muted); margin-top: 1px; }
+
+.sub-total-bar {
+  margin: 14px 20px 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(155,93,229,0.1), rgba(45,198,83,0.07));
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sub-total-label { font-size: 0.78rem; color: var(--muted); }
+.sub-total-val {
+  font-family: var(--font-head);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--purple-light);
+}
+
+/* Review modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8,8,16,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-backdrop.hidden { display: none; }
+
+.modal-sheet {
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  padding: 20px 0 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.modal-drag {
+  width: 40px; height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+
+.modal-title {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 0 20px 4px;
+}
+
+.modal-sub { font-size: 0.75rem; color: var(--muted); padding: 0 20px 18px; }
+
+.review-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.review-item-info { flex: 1; }
+.review-item-name { font-size: 0.85rem; font-weight: 500; margin-bottom: 2px; }
+.review-item-meta { font-size: 0.7rem; color: var(--muted); }
+.review-item-amount { font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; color: var(--red); margin-right: 10px; }
+
+.review-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-approve {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--green-dim);
+  border: 1px solid var(--green-border);
+  color: var(--green-light);
+  cursor: pointer;
+}
+
+.btn-dismiss {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+.modal-close-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ══════════════════════════════════════════════════════════
+   ── GOALS ──
+══════════════════════════════════════════════════════════ */
+.goal-card {
+  margin: 0 20px 10px;
+  border-radius: 20px;
+  padding: 22px 20px;
+  background: linear-gradient(135deg, #1a0f2e 0%, #0d1520 100%);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.goal-card::before {
+  content: '';
+  position: absolute;
+  top: -50px; right: -50px;
+  width: 140px; height: 140px;
+  background: radial-gradient(circle, rgba(155,93,229,0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.goal-title {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.goal-subtitle { font-size: 0.72rem; color: var(--muted); }
+.goal-emoji    { font-size: 1.7rem; line-height: 1; }
+
+.goal-amounts {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.goal-spent {
+  font-family: var(--font-head);
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--purple-light);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.goal-target {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding-bottom: 4px;
+}
+
+.progress-track {
+  height: 7px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 100px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--progress-grad);
+  transition: width 0.8s ease;
+}
+
+.goal-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.71rem;
+  color: var(--muted);
+  align-items: center;
+}
+
+.goal-remaining { color: var(--green-light); font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════════
+   ── UPLOAD ──
+══════════════════════════════════════════════════════════ */
+.upload-area {
+  margin: 0 20px 12px;
+  border-radius: 20px;
+  padding: 32px 20px;
+  background: var(--card-grad);
+  border: 1.5px dashed rgba(155,93,229,0.3);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.upload-area.drag-over {
+  border-color: var(--purple);
+  background: linear-gradient(135deg, #1f1235 0%, #0f1f18 100%);
+}
+
+.upload-input { display: none; }
+.upload-icon  { font-size: 2.2rem; margin-bottom: 12px; }
+
+.upload-title {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.upload-sub { font-size: 0.75rem; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+
+.bank-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+}
+
+.bank-chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.bank-chip.p { background: var(--purple-dim); border-color: var(--purple-border); color: var(--purple-light); }
+.bank-chip.g { background: var(--green-dim);  border-color: var(--green-border);  color: var(--green-light); }
+
+/* Account selector during upload */
+.upload-account-select {
+  margin: 0 20px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-account-select.visible { display: flex; }
+
+.upload-select-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.upload-select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 0.85rem;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.upload-parse-btn {
+  padding: 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--purple), #6b3fa0);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: opacity 0.2s;
+}
+
+.upload-parse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Upload progress */
+.parse-progress {
+  margin: 0 20px 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parse-progress.visible { display: flex; }
+.parse-progress-label { font-size: 0.78rem; color: var(--muted); }
+.parse-progress-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 100px; overflow: hidden; }
+.parse-progress-fill { height: 100%; background: var(--progress-grad); border-radius: 100px; transition: width 0.3s ease; }
+
+/* Upload history */
+.history-list {
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0 16px;
+  margin: 0 20px;
+  overflow: hidden;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.history-item:last-child { border-bottom: none; }
+
+.history-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.history-info { flex: 1; }
+.history-name { font-size: 0.82rem; font-weight: 500; margin-bottom: 2px; }
+.history-meta { font-size: 0.66rem; color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════
+   ── BOTTOM NAV ──
+══════════════════════════════════════════════════════════ */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: rgba(8,8,16,0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(155,93,229,0.1);
+  display: flex;
+  z-index: 100;
+  padding-bottom: var(--safe-bottom);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 4px 10px;
+  cursor: pointer;
+  gap: 4px;
+  color: var(--muted);
+  transition: color 0.15s;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+}
+
+.nav-item.active { color: var(--purple-light); }
+
+.nav-icon {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+.nav-label {
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.nav-dot {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--purple-light);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.nav-item.active .nav-dot { opacity: 1; }
+
+/* Nav SVG icons */
+.nav-icon svg {
+  width: 20px; height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 0.8rem;
+  color: var(--text);
+  z-index: 300;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MISC UTILITIES
+══════════════════════════════════════════════════════════ */
+.hidden { display: none !important; }
+
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.04);
+  margin: 4px 20px;
+}
+
+.inline-link {
+  color: var(--purple-light);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.fade-in { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+/* ══════════════════════════════════════════════════════════
+   COMMISSION CHART
+══════════════════════════════════════════════════════════ */
+#commission-chart {
+  width: 100% !important;
+  display: block;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.chart-legend-val {
+  font-family: var(--font-head);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--green-light);
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     AUTH SCREEN
+════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-logo">
+    <svg width="52" height="52" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="logoGrad" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#9b5de5"/>
+          <stop offset="100%" stop-color="#2dc653"/>
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="28" stroke="url(#logoGrad)" stroke-width="2.5" fill="#0f0f1a"/>
+      <path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+  <div class="auth-wordmark">Minorph</div>
+  <div class="auth-tagline">Personal finance, on your terms</div>
+
+  <div class="auth-form" id="login-form">
+    <input class="auth-input" type="email" id="auth-email" placeholder="Email" autocomplete="email">
+    <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+    <div class="auth-error" id="auth-error"></div>
+    <button class="auth-btn" id="auth-submit-btn" onclick="handleLogin()">Sign in</button>
+  </div>
+
+  <div class="auth-switch">
+    No account? <span onclick="toggleAuthMode()">Create one</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── LOGO SVG reused across headers ── -->
+  <template id="logo-svg-tpl">
+    <svg width="36" height="36" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lgh" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#9b5de5"/>
+          <stop offset="100%" stop-color="#2dc653"/>
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="28" stroke="url(#lgh)" stroke-width="2.5" fill="#0f0f1a"/>
+      <path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </template>
+
+  <!-- ════ SCREEN: DASHBOARD ════ -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="app-header">
+      <div class="header-left">
+        <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lg1" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#2dc653"/></linearGradient></defs><circle cx="32" cy="32" r="28" stroke="url(#lg1)" stroke-width="2.5" fill="#0f0f1a"/><path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="header-wordmark">
+          <div class="header-logo-text">Minorph</div>
+          <div class="header-subtitle" id="dash-header-period">Loading…</div>
+        </div>
+      </div>
+      <div class="header-avatar" id="user-avatar" onclick="signOut()">R</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-label">Total Balance</div>
+      <div class="hero-amount" id="dash-total-balance">£0.00</div>
+      <div class="hero-pills" id="dash-hero-pills">
+        <div class="loading-wrap" style="padding:8px 0"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- Account cards -->
+    <div class="section-title">Accounts</div>
+    <div id="dash-accounts">
+      <div class="loading-wrap"><div class="spinner"></div><span>Loading accounts…</span></div>
+    </div>
+
+    <!-- Commission -->
+    <div class="section-title">Commission Income</div>
+    <div id="dash-commission">
+      <div class="empty-state" style="padding:24px">
+        <div class="empty-sub">Upload a statement to see commission data</div>
+      </div>
+    </div>
+
+    <!-- Commission chart (hidden until 2+ months of data) -->
+    <div id="dash-commission-chart-wrap" class="hidden">
+      <div class="section-title">Month-on-Month</div>
+      <div class="card" style="padding:18px 16px 14px">
+        <canvas id="commission-chart" height="160"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════ SCREEN: TRANSACTIONS ════ -->
+  <div class="screen" id="screen-transactions">
+    <div class="app-header">
+      <div class="header-left">
+        <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lg2" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#2dc653"/></linearGradient></defs><circle cx="32" cy="32" r="28" stroke="url(#lg2)" stroke-width="2.5" fill="#0f0f1a"/><path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="header-wordmark">
+          <div class="header-logo-text">Minorph</div>
+          <div class="header-subtitle">Transactions</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-title">Transactions</div>
+    <div class="page-sub" id="txn-page-sub">All accounts</div>
+
+    <div class="account-select-wrap">
+      <select class="account-select" id="txn-account-filter" onchange="loadTransactions()">
+        <option value="all">All Accounts</option>
+      </select>
+    </div>
+
+    <div class="filter-bar" id="txn-filter-bar">
+      <button class="filter-chip active" data-filter="all" onclick="setTxnFilter(this)">All</button>
+      <button class="filter-chip" data-filter="subscription" onclick="setTxnFilter(this)">Subscriptions</button>
+      <button class="filter-chip" data-filter="cs2" onclick="setTxnFilter(this)">CS2</button>
+      <button class="filter-chip" data-filter="bills" onclick="setTxnFilter(this)">Bills</button>
+      <button class="filter-chip" data-filter="income" onclick="setTxnFilter(this)">Income</button>
+      <button class="filter-chip" data-filter="transfer" onclick="setTxnFilter(this)">Transfers</button>
+    </div>
+
+    <div id="txn-list-wrap">
+      <div class="loading-wrap"><div class="spinner"></div><span>Loading transactions…</span></div>
+    </div>
+  </div>
+
+  <!-- ════ SCREEN: SUBSCRIPTIONS ════ -->
+  <div class="screen" id="screen-subscriptions">
+    <div class="app-header">
+      <div class="header-left">
+        <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lg3" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#2dc653"/></linearGradient></defs><circle cx="32" cy="32" r="28" stroke="url(#lg3)" stroke-width="2.5" fill="#0f0f1a"/><path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="header-wordmark">
+          <div class="header-logo-text">Minorph</div>
+          <div class="header-subtitle">Subscriptions</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-title">Subscriptions</div>
+    <div class="page-sub">Auto-detected recurring charges</div>
+
+    <div id="subs-approval-banner" class="hidden"></div>
+    <div id="subs-grid-wrap">
+      <div class="loading-wrap"><div class="spinner"></div><span>Detecting subscriptions…</span></div>
+    </div>
+    <div id="subs-total-bar" class="hidden">
+      <div class="sub-total-bar">
+        <div class="sub-total-label">Monthly total</div>
+        <div class="sub-total-val" id="subs-total-val">£0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SCREEN: GOALS ════ -->
+  <div class="screen" id="screen-goals">
+    <div class="app-header">
+      <div class="header-left">
+        <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lg4" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#2dc653"/></linearGradient></defs><circle cx="32" cy="32" r="28" stroke="url(#lg4)" stroke-width="2.5" fill="#0f0f1a"/><path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="header-wordmark">
+          <div class="header-logo-text">Minorph</div>
+          <div class="header-subtitle">Goals</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-title">Goals</div>
+    <div class="page-sub">Track targets & rewards</div>
+
+    <div id="goals-wrap">
+      <div class="loading-wrap"><div class="spinner"></div><span>Loading goals…</span></div>
+    </div>
+  </div>
+
+  <!-- ════ SCREEN: UPLOAD ════ -->
+  <div class="screen" id="screen-upload">
+    <div class="app-header">
+      <div class="header-left">
+        <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lg5" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#2dc653"/></linearGradient></defs><circle cx="32" cy="32" r="28" stroke="url(#lg5)" stroke-width="2.5" fill="#0f0f1a"/><path d="M14 46 L14 18 L32 34 L50 18 L50 46" stroke="#f0eeff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div class="header-wordmark">
+          <div class="header-logo-text">Minorph</div>
+          <div class="header-subtitle">Upload</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-title">Upload Statements</div>
+    <div class="page-sub">Add monthly PDFs — we'll parse them automatically</div>
+
+    <!-- Drop zone -->
+    <div class="upload-area" id="upload-drop-zone" onclick="document.getElementById('pdf-file-input').click()">
+      <input type="file" id="pdf-file-input" class="upload-input" accept=".pdf" onchange="onFileSelected(event)">
+      <div class="upload-icon">📄</div>
+      <div class="upload-title">Tap to select a statement</div>
+      <div class="upload-sub">Lloyds, Revolut, and Amex PDFs supported.<br>Parsed entirely on your device — nothing uploaded.</div>
+      <div class="bank-chip-row">
+        <span class="bank-chip p">Lloyds Current</span>
+        <span class="bank-chip p">Lloyds Credit</span>
+        <span class="bank-chip g">Revolut</span>
+        <span class="bank-chip g">Revolut Savings</span>
+        <span class="bank-chip p">Amex Gold</span>
+      </div>
+    </div>
+
+    <!-- Account selector (shown after file picked) -->
+    <div class="upload-account-select" id="upload-account-select">
+      <div class="upload-select-label">Which account is this statement for?</div>
+      <select class="upload-select" id="upload-account-id">
+        <option value="">Select account…</option>
+      </select>
+      <button class="upload-parse-btn" id="upload-parse-btn" onclick="startParse()" disabled>
+        Parse Statement
+      </button>
+    </div>
+
+    <!-- Parse progress -->
+    <div class="parse-progress" id="parse-progress">
+      <div class="parse-progress-label" id="parse-progress-label">Reading PDF…</div>
+      <div class="parse-progress-bar">
+        <div class="parse-progress-fill" id="parse-progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="section-title">Upload History</div>
+    <div id="upload-history-wrap">
+      <div class="history-list" style="display:none" id="history-list"></div>
+      <div class="empty-state" id="history-empty">
+        <div class="empty-icon">📂</div>
+        <div class="empty-title">No statements yet</div>
+        <div class="empty-sub">Upload your first PDF above to get started</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════ BOTTOM NAV ════ -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-screen="dashboard" onclick="switchScreen('dashboard', this)">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <div class="nav-dot"></div>
+      </div>
+      <span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-item" data-screen="transactions" onclick="switchScreen('transactions', this)">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        <div class="nav-dot"></div>
+      </div>
+      <span class="nav-label">Transactions</span>
+    </button>
+    <button class="nav-item" data-screen="subscriptions" onclick="switchScreen('subscriptions', this)">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M12 8v4l3 3"/></svg>
+        <div class="nav-dot"></div>
+      </div>
+      <span class="nav-label">Subs</span>
+    </button>
+    <button class="nav-item" data-screen="goals" onclick="switchScreen('goals', this)">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg>
+        <div class="nav-dot"></div>
+      </div>
+      <span class="nav-label">Goals</span>
+    </button>
+    <button class="nav-item" data-screen="upload" onclick="switchScreen('upload', this)">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="nav-dot"></div>
+      </div>
+      <span class="nav-label">Upload</span>
+    </button>
+  </nav>
+
+</div><!-- /#app -->
+
+<!-- ════ SUBSCRIPTION REVIEW MODAL ════ -->
+<div class="modal-backdrop hidden" id="review-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Review Detected Subscriptions</div>
+    <div class="modal-sub">Approve recurring charges to add them to your tracker</div>
+    <div id="review-modal-items"></div>
+    <div class="modal-footer">
+      <button class="modal-close-btn" onclick="closeReviewModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ TOAST ════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let currentUser    = null;
+let userAccounts   = [];
+let pendingPdfFile = null;
+let txnFilter      = 'all';
+let txnAccountId   = 'all';
+
+// ── Account number constants ──────────────────────────────────────────────
+// Used by the grocery reimbursement logic: a TFR *out* of Rent & Bills
+// going to Main Current represents the £300/mo grocery budget being returned.
+const RENT_AND_BILLS_ACC_NUM  = '48939060';
+const MAIN_CURRENT_ACC_NUM    = '39741868';
+
+// Known own-account identifiers for internal transfer detection.
+// Covers name variants and all three account numbers.
+const OWN_ACCOUNT_MARKERS = [
+  'R LANGFORD', 'RUDI LANGFORD', 'LANGFORD R', 'LANGFORD RUDI',
+  RENT_AND_BILLS_ACC_NUM,
+  MAIN_CURRENT_ACC_NUM,
+  '82501043',   // Revolut
+];
+
+// ── Category detection rules ─────────────────────────────────────────────
+// Evaluated in order — first match wins.
+// Commission is checked separately via isCommission() before this list runs.
+const CATEGORY_RULES = [
+  // ── Subscriptions ──────────────────────────────────────────────────────
+  { pattern: /NETFLIX/i,                                cat: 'subscription' },
+  { pattern: /EE\s*LIMITED|EE\s*MOBILE|EE\s*DD/i,      cat: 'subscription' },
+  // Virgin Media is a bill (broadband/TV), NOT a subscription in the CS2/streaming
+  // sense — but user wants it in the subscription list, so we tag it subscription.
+  { pattern: /VIRGIN\s*MEDIA/i,                         cat: 'subscription' },
+  { pattern: /CLAUDE\.AI|ANTHROPIC/i,                   cat: 'subscription' },
+  { pattern: /HASTINGS/i,                               cat: 'subscription' },
+  { pattern: /ASHBOURNE/i,                              cat: 'subscription' },
+  { pattern: /DVLA/i,                                   cat: 'subscription' },
+  { pattern: /GOOGLE\s*PLAY/i,                          cat: 'subscription' },
+  { pattern: /SPOTIFY/i,                                cat: 'subscription' },
+  { pattern: /AMAZON\s*PRIME|AMZNPRIME/i,               cat: 'subscription' },
+  { pattern: /APPLE\.COM\/BILL|APPLE\s*SUBSCRI/i,       cat: 'subscription' },
+  { pattern: /DISNEY\s*PLUS|DISNEYPLUS/i,               cat: 'subscription' },
+  { pattern: /NOW\s*TV/i,                               cat: 'subscription' },
+  { pattern: /ADOBE/i,                                  cat: 'subscription' },
+  { pattern: /MICROSOFT\s*365|OFFICE\s*365/i,           cat: 'subscription' },
+
+  // ── CS2 / Gaming ───────────────────────────────────────────────────────
+  { pattern: /CSFLOAT|CS\s*FLOAT/i,                     cat: 'cs2'          },
+  { pattern: /SKINLEDGER|SKIN\s*LEDGER/i,               cat: 'cs2'          },
+  { pattern: /STEAM\s*PURCHASE|STEAMGAMES/i,             cat: 'cs2'          },
+  // Note: bare "STEAM" excluded — Steam is also a train company in the UK.
+  // STEAM_PURCHASE and STEAMGAMES are unambiguous.
+
+  // ── Bills (fixed regular outgoings) ───────────────────────────────────
+  { pattern: /LEADERS/i,                                cat: 'bills'        },
+  { pattern: /OVO\s*ENERGY/i,                           cat: 'bills'        },
+  { pattern: /COUNCIL\s*TAX/i,                          cat: 'bills'        },
+  { pattern: /WATER\s*RATES|THAMES\s*WATER|SEVERN\s*TRENT/i, cat: 'bills'  },
+
+  // ── Groceries (supermarket DEB transactions on Main Current) ──────────
+  { pattern: /LIDL|TESCO|SAINSBURY|ASDA|MORRISONS|WAITROSE|ALDI|M&S\s*SIMPLY|MARKS\s*AND\s*SPENCER\s*FOOD|CO.OP\s*FOOD/i, cat: 'groceries' },
+];
+
+const SUB_ICONS = {
+  'NETFLIX':        '🎬',
+  'EE':             '📱',
+  'VIRGIN MEDIA':   '🌐',
+  'CLAUDE.AI':      '🤖',
+  'ANTHROPIC':      '🤖',
+  'HASTINGS':       '🚗',
+  'ASHBOURNE':      '🏋️',
+  'DVLA':           '🚗',
+  'GOOGLE PLAY':    '📱',
+  'SPOTIFY':        '🎵',
+  'AMAZON PRIME':   '📦',
+  'APPLE':          '🍎',
+  'DEFAULT':        '↻',
+};
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+let authMode = 'login'; // 'login' | 'signup'
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  const btn   = document.getElementById('auth-submit-btn');
+  const sw    = document.querySelector('.auth-switch');
+  if (authMode === 'signup') {
+    btn.textContent = 'Create account';
+    sw.innerHTML    = 'Have an account? <span onclick="toggleAuthMode()">Sign in</span>';
+  } else {
+    btn.textContent = 'Sign in';
+    sw.innerHTML    = 'No account? <span onclick="toggleAuthMode()">Create one</span>';
+  }
+  document.getElementById('auth-error').textContent = '';
+}
+
+async function handleLogin() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn      = document.getElementById('auth-submit-btn');
+  const errEl    = document.getElementById('auth-error');
+
+  if (!email || !password) { errEl.textContent = 'Please enter email and password'; return; }
+
+  btn.disabled      = true;
+  btn.textContent   = 'Please wait…';
+  errEl.textContent = '';
+
+  let result;
+  if (authMode === 'signup') {
+    result = await sb.auth.signUp({ email, password });
+  } else {
+    result = await sb.auth.signInWithPassword({ email, password });
+  }
+
+  btn.disabled = false;
+  btn.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+
+  if (result.error) {
+    errEl.textContent = result.error.message;
+    return;
+  }
+
+  if (authMode === 'signup' && !result.data.session) {
+    errEl.style.color = 'var(--green-light)';
+    errEl.textContent = 'Check your email to confirm your account';
+    return;
+  }
+
+  currentUser = result.data.user;
+  bootApp();
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+async function bootApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display         = 'block';
+
+  // Set avatar initials
+  const email = currentUser.email || '';
+  document.getElementById('user-avatar').textContent = email[0].toUpperCase();
+
+  // Load accounts from Supabase
+  await loadAccounts();
+  populateAccountSelects();
+
+  // Load initial screen data
+  loadDashboard();
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function switchScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  // Lazy-load screen data
+  if (name === 'dashboard')     loadDashboard();
+  if (name === 'transactions')  loadTransactions();
+  if (name === 'subscriptions') loadSubscriptions();
+  if (name === 'goals')         loadGoals();
+  if (name === 'upload')        loadUploadHistory();
+}
+
+// ═══════════════════════════════════════════════
+// SUPABASE — ACCOUNTS
+// ═══════════════════════════════════════════════
+async function loadAccounts() {
+  const { data, error } = await sb
+    .from('accounts')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('name');
+
+  if (error) { console.error('loadAccounts:', error); return; }
+  userAccounts = data || [];
+  console.log(`[accounts] loaded ${userAccounts.length} accounts`);
+}
+
+function populateAccountSelects() {
+  const selects = [
+    document.getElementById('txn-account-filter'),
+    document.getElementById('upload-account-id'),
+  ];
+
+  selects.forEach(sel => {
+    if (!sel) return;
+    // Keep first option, rebuild the rest
+    const first = sel.options[0];
+    sel.innerHTML = '';
+    sel.appendChild(first);
+    userAccounts.forEach(acc => {
+      const opt  = document.createElement('option');
+      opt.value  = acc.id;
+      opt.textContent = `${acc.name} · ${acc.bank}`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════
+async function loadDashboard() {
+  // Get latest statement period
+  const { data: stmts } = await sb
+    .from('statements')
+    .select('period_end, closing_balance, account_id')
+    .eq('accounts.user_id', currentUser.id)
+    .order('period_end', { ascending: false })
+    .limit(20);
+
+  // Get most recent statement per account
+  const latestByAccount = {};
+  if (stmts) {
+    stmts.forEach(s => {
+      if (!latestByAccount[s.account_id]) latestByAccount[s.account_id] = s;
+    });
+  }
+
+  // Calculate total balance
+  let totalBalance = 0;
+  userAccounts.forEach(acc => {
+    const stmt = latestByAccount[acc.id];
+    if (stmt) totalBalance += parseFloat(stmt.closing_balance) || 0;
+  });
+
+  document.getElementById('dash-total-balance').textContent = formatGBP(totalBalance);
+
+  // Period label
+  const periods = Object.values(latestByAccount);
+  if (periods.length > 0) {
+    const latest = periods.sort((a,b) => new Date(b.period_end) - new Date(a.period_end))[0];
+    document.getElementById('dash-header-period').textContent =
+      formatMonthYear(latest.period_end);
+  } else {
+    document.getElementById('dash-header-period').textContent = 'No data yet';
+  }
+
+  // Get in/out totals
+  const { data: txnTotals } = await sb
+    .from('transactions')
+    .select('account_id, amount_in, amount_out, is_internal_transfer, category')
+    .eq('is_internal_transfer', false);
+
+  // Aggregate per account
+  const accountTotals = {};
+  if (txnTotals) {
+    txnTotals.forEach(t => {
+      if (!accountTotals[t.account_id]) accountTotals[t.account_id] = { in: 0, out: 0, commission: 0 };
+      accountTotals[t.account_id].in  += parseFloat(t.amount_in)  || 0;
+      accountTotals[t.account_id].out += parseFloat(t.amount_out) || 0;
+      if (t.category === 'commission') {
+        accountTotals[t.account_id].commission += parseFloat(t.amount_in) || 0;
+      }
+    });
+  }
+
+  // Compute hero pills
+  let totalIn = 0, totalOut = 0;
+  userAccounts.forEach(acc => {
+    const t = accountTotals[acc.id];
+    if (t) { totalIn += t.in; totalOut += t.out; }
+  });
+
+  const pillsEl = document.getElementById('dash-hero-pills');
+  if (totalIn > 0 || totalOut > 0) {
+    pillsEl.innerHTML = `
+      <span class="pill pill-green">↑ ${formatGBP(totalIn)} in</span>
+      <span class="pill pill-red">↓ ${formatGBP(totalOut)} out</span>
+    `;
+  } else {
+    pillsEl.innerHTML = `<span class="pill pill-muted">No transactions yet</span>`;
+  }
+
+  // Render account cards
+  renderAccountCards(latestByAccount, accountTotals);
+
+  // Commission section
+  renderCommission(accountTotals);
+}
+
+function renderAccountCards(latestByAccount, accountTotals) {
+  const container = document.getElementById('dash-accounts');
+
+  if (userAccounts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🏦</div>
+        <div class="empty-title">No accounts set up</div>
+        <div class="empty-sub">Run the Supabase schema SQL to seed your accounts, then refresh.</div>
+      </div>`;
+    return;
+  }
+
+  const ACCOUNT_META = {
+    'main current':    { emoji: '🏦', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
+    'rent & bills':    { emoji: '🏠', balClass: 'bal-green',  badgeClass: 'badge-g', tint: 'green-tint' },
+    'revolut current': { emoji: '✈️', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
+    'revolut savings': { emoji: '💰', balClass: 'bal-green',  badgeClass: 'badge-g', tint: 'green-tint' },
+    'platinum credit': { emoji: '💳', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
+    'amex gold':       { emoji: '✨', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
+  };
+
+  let html = '';
+  userAccounts.forEach(acc => {
+    const key   = acc.name.toLowerCase();
+    const meta  = ACCOUNT_META[key] || { emoji: '🏦', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' };
+    const stmt  = latestByAccount[acc.id];
+    const tots  = accountTotals[acc.id] || { in: 0, out: 0 };
+    const bal   = stmt ? parseFloat(stmt.closing_balance) : null;
+    const balStr = bal !== null ? formatGBP(bal) : '—';
+
+    // Special stats per account
+    let statsHtml = '';
+    if (key === 'rent & bills') {
+      statsHtml = `
+        <div><div class="stat-label">Rent</div><div class="stat-val val-white">${formatGBP(tots.rent || 0)}</div></div>
+        <div><div class="stat-label">Energy</div><div class="stat-val val-white">${formatGBP(tots.energy || 0)}</div></div>
+      `;
+    } else if (key === 'revolut savings') {
+      statsHtml = `
+        <div><div class="stat-label">Deposited</div><div class="stat-val val-white">${formatGBP(tots.in)}</div></div>
+        <div><div class="stat-label">Interest</div><div class="stat-val val-green">${formatGBP(tots.interest || 0)}</div></div>
+      `;
+    } else if (key === 'amex gold') {
+      statsHtml = `<div><div class="stat-label">Status</div><div class="stat-val val-muted">Pending</div></div>`;
+    } else {
+      statsHtml = `
+        <div><div class="stat-label">Money In</div><div class="stat-val val-green">${formatGBP(tots.in)}</div></div>
+        <div><div class="stat-label">Money Out</div><div class="stat-val val-red">${formatGBP(tots.out)}</div></div>
+      `;
+    }
+
+    html += `
+      <div class="card ${meta.tint}">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${acc.name}${acc.account_number ? ' · ' + acc.account_number : ''}</div>
+            <div class="card-balance ${meta.balClass}">${balStr}</div>
+          </div>
+          <div class="card-badge ${meta.badgeClass}">${meta.emoji}</div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-stats">${statsHtml}</div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// Chart.js instance — kept so we can destroy+recreate on re-render
+let commissionChartInstance = null;
+
+function renderCommission(accountTotals) {
+  const container = document.getElementById('dash-commission');
+  let totalCommission = 0;
+  userAccounts.forEach(acc => {
+    const t = accountTotals[acc.id];
+    if (t) totalCommission += t.commission || 0;
+  });
+
+  if (totalCommission === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding:20px">
+        <div class="empty-sub">No commission income found.<br>Upload a Lloyds statement with INFINITY RENEWABLE transactions.</div>
+      </div>`;
+    document.getElementById('dash-commission-chart-wrap').classList.add('hidden');
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="income-bar">
+      <div class="income-row">
+        <span class="income-label">Infinity Renewables FPI</span>
+        <span class="income-val val-green">${formatGBP(totalCommission)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+      <div class="bar-labels">
+        <span>Commission income</span>
+        <span class="pill pill-green" style="font-size:0.62rem">FPI</span>
+      </div>
+    </div>
+  `;
+
+  // Load and render the month-on-month chart separately
+  loadCommissionChart();
+}
+
+// ─── Commission month-on-month Chart.js bar chart ───────────────────────
+/*
+  Queries all transactions where is_commission=true, groups by YYYY-MM,
+  sums amount_in per month, and renders a Chart.js bar chart.
+  Hidden if fewer than 1 month of data exists.
+*/
+async function loadCommissionChart() {
+  const { data, error } = await sb
+    .from('transactions')
+    .select('date, amount_in')
+    .eq('is_commission', true)
+    .order('date', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('dash-commission-chart-wrap').classList.add('hidden');
+    return;
+  }
+
+  // Aggregate by month (YYYY-MM)
+  const monthMap = {};
+  data.forEach(t => {
+    const month = (t.date || '').slice(0, 7); // "2026-04"
+    if (!month) return;
+    monthMap[month] = (monthMap[month] || 0) + (parseFloat(t.amount_in) || 0);
+  });
+
+  const months = Object.keys(monthMap).sort();
+
+  // Always show the chart even with 1 month — useful for a single bar.
+  // (Chart will grow naturally as more months are uploaded.)
+  const labels = months.map(m => {
+    const [y, mo] = m.split('-');
+    const d = new Date(parseInt(y), parseInt(mo) - 1, 1);
+    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  });
+  const values = months.map(m => monthMap[m]);
+  const maxVal = Math.max(...values);
+  const total  = values.reduce((a, b) => a + b, 0);
+  const avg    = values.length > 0 ? total / values.length : 0;
+
+  // Update legend in the card
+  const wrap = document.getElementById('dash-commission-chart-wrap');
+  wrap.classList.remove('hidden');
+
+  // Destroy previous Chart instance before creating a new one
+  if (commissionChartInstance) {
+    commissionChartInstance.destroy();
+    commissionChartInstance = null;
+  }
+
+  const canvas = document.getElementById('commission-chart');
+  const ctx    = canvas.getContext('2d');
+
+  // Gradient fill for bars
+  const grad = ctx.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, 'rgba(87,242,136,0.85)');
+  grad.addColorStop(1, 'rgba(45,198,83,0.3)');
+
+  commissionChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: grad,
+        borderColor: 'rgba(87,242,136,0.9)',
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#141424',
+          borderColor: 'rgba(155,93,229,0.3)',
+          borderWidth: 1,
+          titleColor: '#7777aa',
+          bodyColor: '#f0eeff',
+          titleFont: { family: "'DM Sans', sans-serif", size: 11 },
+          bodyFont: { family: "'Syne', sans-serif", size: 14, weight: '700' },
+          padding: 10,
+          callbacks: {
+            label: ctx => ' ' + formatGBP(ctx.raw),
+          }
+        },
+      },
+      scales: {
+        x: {
+          grid:  { display: false },
+          border: { display: false },
+          ticks: {
+            color: '#7777aa',
+            font: { family: "'DM Sans', sans-serif", size: 10 },
+          }
+        },
+        y: {
+          display: false,
+          grid:  { display: false },
+          min: 0,
+          max: maxVal * 1.25,
+        }
+      },
+      animation: {
+        duration: 600,
+        easing: 'easeOutQuart',
+      }
+    }
+  });
+
+  // Add summary legend below the chart
+  // Check if legend already exists (avoid duplicates on re-render)
+  const existingLegend = wrap.querySelector('.chart-legend');
+  if (existingLegend) existingLegend.remove();
+
+  const card = wrap.querySelector('.card');
+  const legend = document.createElement('div');
+  legend.className = 'chart-legend';
+  legend.innerHTML = `
+    <div>
+      <div style="margin-bottom:2px">Total (${months.length} month${months.length !== 1 ? 's' : ''})</div>
+      <div class="chart-legend-val">${formatGBP(total)}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="margin-bottom:2px">Monthly avg</div>
+      <div class="chart-legend-val">${formatGBP(avg)}</div>
+    </div>
+  `;
+  card.appendChild(legend);
+}
+
+// ═══════════════════════════════════════════════
+// TRANSACTIONS
+// ═══════════════════════════════════════════════
+async function loadTransactions() {
+  const wrap    = document.getElementById('txn-list-wrap');
+  const acctSel = document.getElementById('txn-account-filter');
+  txnAccountId  = acctSel.value;
+
+  wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>';
+
+  let query = sb
+    .from('transactions')
+    .select('*, accounts(name)')
+    .order('date', { ascending: false })
+    .limit(200);
+
+  if (txnAccountId !== 'all') query = query.eq('account_id', txnAccountId);
+  if (txnFilter === 'transfer') {
+    query = query.eq('is_internal_transfer', true);
+  } else if (txnFilter !== 'all') {
+    query = query.eq('category', txnFilter);
+    query = query.eq('is_internal_transfer', false);
+  } else {
+    // Default: hide internal transfers
+    query = query.eq('is_internal_transfer', false);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-sub" style="color:var(--red)">${error.message}</div></div>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">No transactions</div>
+        <div class="empty-sub">Upload a statement to see your transactions here.</div>
+      </div>`;
+    return;
+  }
+
+  // Update sub-title
+  const accLabel = txnAccountId === 'all' ? 'All accounts' :
+    (userAccounts.find(a => a.id === txnAccountId)?.name || 'Account');
+  document.getElementById('txn-page-sub').textContent = accLabel + ' · ' + data.length + ' transactions';
+
+  // Group by date
+  const groups = {};
+  data.forEach(t => {
+    const d = t.date;
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(t);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([date, txns]) => {
+    html += `<div class="txn-group-date">${formatDate(date)}</div>`;
+    txns.forEach(t => {
+      const isIn     = t.amount_in && parseFloat(t.amount_in) > 0;
+      const amount   = isIn ? parseFloat(t.amount_in) : parseFloat(t.amount_out);
+      const amtStr   = (isIn ? '+' : '−') + formatGBP(amount);
+      const amtClass = isIn ? 'val-green' : 'val-red';
+      const icon     = getCategoryIcon(t.category, t.description);
+      const typeBadge = t.type ? `<span class="txn-type-badge">${t.type}</span>` : '';
+      const acctName = t.accounts?.name || '';
+
+      html += `
+        <div class="txn-item">
+          <div class="txn-icon">${icon}</div>
+          <div class="txn-info">
+            <div class="txn-name">${escHtml(t.description)}</div>
+            <div class="txn-meta">${typeBadge} ${acctName}</div>
+          </div>
+          <div class="txn-amount ${amtClass}">${amtStr}</div>
+        </div>
+      `;
+    });
+  });
+
+  wrap.innerHTML = `<div class="txn-list">${html}</div>`;
+}
+
+function setTxnFilter(btn) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  txnFilter = btn.dataset.filter;
+  loadTransactions();
+}
+
+// ═══════════════════════════════════════════════
+// SUBSCRIPTIONS
+// ═══════════════════════════════════════════════
+async function loadSubscriptions() {
+  const gridWrap    = document.getElementById('subs-grid-wrap');
+  const totalBar    = document.getElementById('subs-total-bar');
+  const approvalEl  = document.getElementById('subs-approval-banner');
+
+  gridWrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>';
+  approvalEl.innerHTML = '';
+  approvalEl.classList.add('hidden');
+  totalBar.classList.add('hidden');
+
+  // Load approved subscriptions
+  const { data: approved } = await sb
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('approved', true)
+    .order('amount', { ascending: false });
+
+  // Load pending (unapproved) subs
+  const { data: pending } = await sb
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('approved', false);
+
+  // Approval banner
+  if (pending && pending.length > 0) {
+    approvalEl.classList.remove('hidden');
+    approvalEl.innerHTML = `
+      <div class="approval-banner">
+        <div class="approval-icon">✨</div>
+        <div class="approval-text">
+          <div class="approval-title">${pending.length} new recurring charge${pending.length > 1 ? 's' : ''} detected</div>
+          <div class="approval-sub">Review and approve to add to your tracker</div>
+        </div>
+        <button class="approval-btn" onclick="openReviewModal()">Review</button>
+      </div>`;
+  }
+
+  // Grid
+  if (!approved || approved.length === 0) {
+    gridWrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">↻</div>
+        <div class="empty-title">No subscriptions tracked</div>
+        <div class="empty-sub">Upload at least 2 months of statements and we'll auto-detect your recurring charges.</div>
+      </div>`;
+    return;
+  }
+
+  let total = 0;
+  let gridHtml = '<div class="sub-grid">';
+  approved.forEach(s => {
+    total += parseFloat(s.amount) || 0;
+    const icon = s.icon || getSubIcon(s.name);
+    gridHtml += `
+      <div class="sub-card">
+        <div class="sub-icon">${icon}</div>
+        <div class="sub-name">${escHtml(s.name)}</div>
+        <div class="sub-amount">${formatGBP(s.amount)}</div>
+        <div class="sub-cycle">/ ${s.cycle || 'month'}</div>
+      </div>`;
+  });
+  gridHtml += '</div>';
+
+  gridWrap.innerHTML = gridHtml;
+
+  document.getElementById('subs-total-val').textContent = formatGBP(total);
+  totalBar.classList.remove('hidden');
+}
+
+async function openReviewModal() {
+  const { data: pending } = await sb
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('approved', false);
+
+  if (!pending || pending.length === 0) {
+    showToast('No pending subscriptions');
+    return;
+  }
+
+  const itemsEl = document.getElementById('review-modal-items');
+  let html = '';
+  pending.forEach(s => {
+    const icon = s.icon || getSubIcon(s.name);
+    html += `
+      <div class="review-item" id="review-item-${s.id}">
+        <div class="txn-icon">${icon}</div>
+        <div class="review-item-info">
+          <div class="review-item-name">${escHtml(s.name)}</div>
+          <div class="review-item-meta">Detected recurring · ${formatGBP(s.amount)}/mo</div>
+        </div>
+        <div class="review-item-amount">−${formatGBP(s.amount)}</div>
+        <div class="review-actions">
+          <button class="btn-approve" onclick="approveSub('${s.id}')">✓ Add</button>
+          <button class="btn-dismiss" onclick="dismissSub('${s.id}')">✕</button>
+        </div>
+      </div>`;
+  });
+
+  itemsEl.innerHTML = html;
+  document.getElementById('review-modal').classList.remove('hidden');
+}
+
+function closeReviewModal() {
+  document.getElementById('review-modal').classList.add('hidden');
+  loadSubscriptions();
+}
+
+async function approveSub(id) {
+  await sb.from('subscriptions').update({ approved: true }).eq('id', id);
+  document.getElementById(`review-item-${id}`)?.remove();
+  showToast('Subscription added ✓');
+}
+
+async function dismissSub(id) {
+  await sb.from('subscriptions').delete().eq('id', id);
+  document.getElementById(`review-item-${id}`)?.remove();
+  showToast('Dismissed');
+}
+
+// ═══════════════════════════════════════════════
+// GOALS
+// ═══════════════════════════════════════════════
+async function loadGoals() {
+  const wrap = document.getElementById('goals-wrap');
+  wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>Loading goals…</span></div>';
+
+  const { data: goals, error } = await sb
+    .from('goals')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at');
+
+  if (error || !goals || goals.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <div class="empty-title">No goals set</div>
+        <div class="empty-sub">Goals will appear here once you've set them up in Supabase.</div>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+  goals.forEach(g => {
+    const pct     = Math.min(100, ((parseFloat(g.current_amount) / parseFloat(g.target)) * 100)).toFixed(1);
+    const rem     = Math.max(0, parseFloat(g.target) - parseFloat(g.current_amount));
+    const isSpend = g.type === 'spend';
+
+    if (g.name.toLowerCase().includes('amex')) {
+      // Amex goal — special layout
+      const deadline     = new Date(g.deadline);
+      const now          = new Date();
+      const msRemaining  = deadline - now;
+      const monthsLeft   = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24 * 30)));
+      const neededPerMo  = monthsLeft > 0 ? rem / monthsLeft : rem;
+
+      html += `
+        <div class="goal-card">
+          <div class="goal-header">
+            <div>
+              <div class="goal-title">${escHtml(g.name)}</div>
+              <div class="goal-subtitle">Spend £${formatNum(g.target)} to unlock 40,000 points</div>
+            </div>
+            <div class="goal-emoji">💳</div>
+          </div>
+          <div class="goal-amounts">
+            <div class="goal-spent">${formatGBP(g.current_amount)}</div>
+            <div class="goal-target">of ${formatGBP(g.target)}</div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="goal-footer">
+            <span>${pct}% complete</span>
+            <span class="goal-remaining">${formatGBP(rem)} remaining</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:0">
+          <div class="card-top">
+            <div>
+              <div class="card-name">Time Remaining</div>
+              <div class="card-balance bal-purple">${monthsLeft} month${monthsLeft !== 1 ? 's' : ''}</div>
+            </div>
+            <div class="card-badge badge-p">⏱️</div>
+          </div>
+          <div class="card-divider"></div>
+          <div class="card-stats">
+            <div><div class="stat-label">Needed/month</div><div class="stat-val val-purple">${formatGBP(neededPerMo)}</div></div>
+            <div><div class="stat-label">Deadline</div><div class="stat-val val-white">${formatMonthYear(g.deadline)}</div></div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Savings goal
+      const emoji = g.type === 'save' ? '💰' : '🎯';
+      html += `
+        <div class="section-title">${isSpend ? 'Spending' : 'Savings'}</div>
+        <div class="card green-tint">
+          <div class="card-top">
+            <div>
+              <div class="card-name">${escHtml(g.name)}</div>
+              <div class="card-balance bal-green">${formatGBP(g.current_amount)}</div>
+            </div>
+            <div class="card-badge badge-g">${emoji}</div>
+          </div>
+          <div class="card-divider"></div>
+          <div class="progress-track" style="margin-bottom:8px">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="goal-footer">
+            <span style="color:var(--muted)">Target: ${formatGBP(g.target)}</span>
+            <span class="goal-remaining">${pct}% there</span>
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  wrap.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD + PDF PARSING
+// ═══════════════════════════════════════════════
+function onFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  pendingPdfFile = file;
+
+  // Show account selector
+  const sel = document.getElementById('upload-account-select');
+  sel.classList.add('visible');
+
+  // Enable parse button once account selected
+  const acctSel = document.getElementById('upload-account-id');
+  const parseBtn = document.getElementById('upload-parse-btn');
+
+  // Update drop zone label
+  document.querySelector('.upload-title').textContent = file.name;
+  document.querySelector('.upload-sub').textContent = `${(file.size / 1024).toFixed(0)} KB · Select account below`;
+
+  acctSel.addEventListener('change', () => {
+    parseBtn.disabled = !acctSel.value;
+  });
+}
+
+async function startParse() {
+  if (!pendingPdfFile) return;
+  const accountId = document.getElementById('upload-account-id').value;
+  if (!accountId) { showToast('Please select an account'); return; }
+
+  const account   = userAccounts.find(a => a.id === accountId);
+  if (!account)   { showToast('Account not found'); return; }
+
+  const btn = document.getElementById('upload-parse-btn');
+  btn.disabled = true;
+
+  showParseProgress(10, 'Reading PDF…');
+
+  try {
+    // Extract raw text from PDF
+    const text = await extractPdfText(pendingPdfFile, pct => {
+      showParseProgress(10 + pct * 0.5, 'Reading PDF…');
+    });
+
+    showParseProgress(60, 'Parsing transactions…');
+    console.log('[parse] raw text length:', text.length);
+
+    // Detect format and parse
+    let transactions = [];
+    const bankLower = (account.bank || '').toLowerCase();
+
+    if (bankLower.includes('lloyds')) {
+      transactions = parseLloyds(text);
+    } else if (bankLower.includes('revolut') && account.name.toLowerCase().includes('saving')) {
+      transactions = parseRevolutSavings(text);
+    } else if (bankLower.includes('revolut')) {
+      transactions = parseRevolutCurrent(text);
+    } else if (bankLower.includes('amex') || bankLower.includes('american express')) {
+      transactions = parseAmex(text);
+    } else {
+      showToast('Unknown bank format');
+      btn.disabled = false;
+      hideParseProgress();
+      return;
+    }
+
+    console.log(`[parse] found ${transactions.length} transactions`);
+    showParseProgress(75, `Found ${transactions.length} transactions…`);
+
+    if (transactions.length === 0) {
+      showToast('No transactions found — check the PDF format');
+      btn.disabled = false;
+      hideParseProgress();
+      return;
+    }
+
+    showParseProgress(80, 'Detecting period…');
+
+    // Detect period
+    const dates   = transactions.map(t => t.date).filter(Boolean).sort();
+    const pStart  = dates[0] || null;
+    const pEnd    = dates[dates.length - 1] || null;
+
+    // Detect opening/closing balance from parsed data
+    const openBal  = transactions[0]?.runningBalance || null;
+    const closeBal = transactions[transactions.length - 1]?.runningBalance || null;
+
+    showParseProgress(85, 'Saving to Supabase…');
+
+    // Insert statement record
+    const { data: stmt, error: stmtErr } = await sb
+      .from('statements')
+      .insert({
+        account_id:       accountId,
+        period_start:     pStart,
+        period_end:       pEnd,
+        opening_balance:  openBal,
+        closing_balance:  closeBal,
+      })
+      .select()
+      .single();
+
+    if (stmtErr) throw stmtErr;
+
+    // Categorise and flag transactions.
+    // Pass the full account object so categorise() can apply account-specific
+    // rules — e.g. grocery reimbursement TFRs on the Rent & Bills account.
+    const rows = transactions.map(t => {
+      const cat = categorise(t, account);
+      return {
+        statement_id:         stmt.id,
+        account_id:           accountId,
+        date:                 t.date,
+        description:          t.description,
+        type:                 t.type || null,
+        amount_in:            t.amountIn  || 0,
+        amount_out:           t.amountOut || 0,
+        balance:              t.runningBalance || null,
+        category:             cat,
+        // Grocery reimbursements are intentionally NOT flagged as internal
+        // transfers — they represent real grocery spend on the Rent & Bills
+        // account and should appear in spend analysis.
+        is_internal_transfer: cat !== 'groceries' && isInternalTransfer(t),
+        is_commission:        isCommission(t),
+      };
+    });
+
+    showParseProgress(90, `Saving ${rows.length} transactions…`);
+
+    // Batch insert (Supabase handles arrays)
+    const BATCH = 100;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const { error: txnErr } = await sb.from('transactions').insert(rows.slice(i, i + BATCH));
+      if (txnErr) throw txnErr;
+      showParseProgress(90 + ((i / rows.length) * 8), 'Saving transactions…');
+    }
+
+    showParseProgress(98, 'Detecting subscriptions…');
+
+    // Run subscription detection
+    await detectSubscriptions(accountId);
+
+    showParseProgress(100, 'Done!');
+    await sleep(600);
+    hideParseProgress();
+
+    showToast(`✓ ${rows.length} transactions imported`);
+
+    // Reset UI
+    pendingPdfFile = null;
+    document.getElementById('pdf-file-input').value = '';
+    document.getElementById('upload-account-select').classList.remove('visible');
+    document.querySelector('.upload-title').textContent = 'Tap to select a statement';
+    document.querySelector('.upload-sub').textContent = 'Lloyds, Revolut, and Amex PDFs supported.\nParsed entirely on your device — nothing uploaded.';
+    btn.disabled = false;
+
+    loadUploadHistory();
+
+  } catch (err) {
+    console.error('[parse] error:', err);
+    showToast('Parse error: ' + err.message);
+    hideParseProgress();
+    btn.disabled = false;
+  }
+}
+
+// ─── Extract all text from a PDF ───────────────
+async function extractPdfText(file, onProgress) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let   fullText    = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page    = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Preserve spatial layout by sorting items left-to-right, top-to-bottom
+    const items = content.items.sort((a, b) => {
+      const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+      if (Math.abs(yDiff) > 3) return yDiff;
+      return a.transform[4] - b.transform[4];
+    });
+    const pageText = items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+    if (onProgress) onProgress(i / pdf.numPages);
+  }
+
+  return fullText;
+}
+
+// ─── LLOYDS PARSER ─────────────────────────────
+/*
+  PDF.js extracts Lloyds statements in a labelled token format:
+    "Date\n01 Apr 26\nDescription\nDVLA-HGZ7582\nType\nDD Money In (£) blank.\nMoney Out (£)\n17.06\nBalance (£)\n938.07"
+  Strategy: find all Date tokens, then extract the following Description/Type/amounts.
+  Also handles the older single-line format as fallback.
+*/
+function parseLloyds(text) {
+  const transactions = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Strategy 1: labelled token format (what PDF.js produces for this Lloyds PDF)
+  // Look for the pattern: "Date\n<date>\nDescription\n<desc>\nType\n<type> ..."
+  const DATE_RE = /^\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2}$/i;
+  const TYPE_RE = /^(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE)/i;
+  const AMOUNT_RE = /^[\d,]+\.\d{2}$/;
+  const inTypes  = new Set(['FPI', 'BGC', 'COR', 'DEP', 'MPI']);
+  const outTypes = new Set(['DD', 'DEB', 'FPO', 'SO', 'CPT', 'ATM', 'FEE', 'MPO', 'PAY']);
+
+  // Find all date line indices
+  const dateIndices = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (DATE_RE.test(lines[i])) dateIndices.push(i);
+  }
+
+  if (dateIndices.length > 0) {
+    console.log(`[parseLloyds] found ${dateIndices.length} date markers, using labelled token strategy`);
+    for (let di = 0; di < dateIndices.length; di++) {
+      const start = dateIndices[di];
+      const end   = di + 1 < dateIndices.length ? dateIndices[di + 1] : Math.min(start + 12, lines.length);
+      const chunk = lines.slice(start, end);
+
+      const dateStr = chunk[0];
+      const date    = parseLloydsDate(dateStr);
+      if (!date) continue;
+
+      // Find description: line after "Description" label, or first non-label line after date
+      let desc = '';
+      let type = null;
+      const amounts = [];
+
+      for (let j = 1; j < chunk.length; j++) {
+        const l = chunk[j];
+        // Skip header labels
+        if (/^(Date|Description|Type|Money In|Money Out|Balance|Column|\(£\)|blank\.)/.test(l)) continue;
+        if (DATE_RE.test(l)) break;
+
+        // Type code — may appear as "DD Money In (£) blank." or just "DD"
+        const typeMatch = l.match(/^(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE)\b/i);
+        if (typeMatch && !type) {
+          type = typeMatch[1].toUpperCase();
+          continue;
+        }
+
+        // Amount
+        if (AMOUNT_RE.test(l.replace(/,/g, ''))) {
+          amounts.push(parseFloat(l.replace(/,/g, '')));
+          continue;
+        }
+
+        // Description (first meaningful non-label, non-type, non-amount line)
+        if (!desc && l.length > 0 && !/^\d+$/.test(l)) {
+          desc = l;
+        }
+      }
+
+      // Determine in/out from amounts and type
+      let amountIn = 0, amountOut = 0, balance = null;
+      if (amounts.length >= 2) {
+        balance = amounts[amounts.length - 1];
+        const val = amounts[0];
+        if (type && inTypes.has(type))  amountIn  = val;
+        else if (type && outTypes.has(type)) amountOut = val;
+        else amountOut = val;
+      } else if (amounts.length === 1) {
+        const val = amounts[0];
+        if (type && inTypes.has(type))  amountIn  = val;
+        else                            amountOut = val;
+      }
+
+      if (desc || type) {
+        transactions.push({ date, description: desc || '', type: type || 'OTHER', amountIn, amountOut, runningBalance: balance });
+      }
+    }
+  }
+
+  if (transactions.length > 0) {
+    console.log(`[parseLloyds] parsed ${transactions.length} transactions via labelled token strategy`);
+    return transactions;
+  }
+
+  // Strategy 2: single-line regex (older PDF format)
+  console.warn('[parseLloyds] labelled token strategy yielded 0, trying single-line regex');
+  const raw = lines.join(' | ');
+  const rowRe = /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+?)\s+(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM)\s+([\d,]+\.\d{2})?\s*([\d,]+\.\d{2})?\s*([\d,]+\.\d{2})/gi;
+  let match;
+  while ((match = rowRe.exec(raw)) !== null) {
+    const [, dateStr, desc, type, rawIn, rawOut, rawBal] = match;
+    const date      = parseLloydsDate(dateStr);
+    const amountIn  = rawIn  ? parseFloat(rawIn.replace(/,/g, ''))  : 0;
+    const amountOut = rawOut ? parseFloat(rawOut.replace(/,/g, '')) : 0;
+    const balance   = rawBal ? parseFloat(rawBal.replace(/,/g, '')) : null;
+    if (!date) continue;
+    transactions.push({ date, description: desc.trim(), type, amountIn, amountOut, runningBalance: balance });
+  }
+
+  if (transactions.length > 0) {
+    console.log(`[parseLloyds] parsed ${transactions.length} transactions via single-line regex`);
+    return transactions;
+  }
+
+  // Strategy 3: line-by-line fallback
+  console.warn('[parseLloyds] all strategies yielded 0, trying line-by-line fallback');
+  return parseLloydsLineFallback(lines);
+}
+
+function parseLloydsLineFallback(lines) {
+  const transactions = [];
+  const DATE_LINE_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+/i;
+  const inTypes  = ['FPI', 'BGC', 'COR', 'DEP', 'MPI'];
+  const outTypes = ['DD', 'DEB', 'FPO', 'SO', 'CPT', 'ATM'];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const dateMatch = line.match(DATE_LINE_RE);
+    if (!dateMatch) continue;
+    const date    = parseLloydsDate(dateMatch[1]);
+    const rest    = line.slice(dateMatch[0].length);
+    const amounts = [...rest.matchAll(/[\d,]+\.\d{2}/g)].map(m => parseFloat(m[0].replace(/,/g, '')));
+    const typeMatch = rest.match(/\b(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM)\b/);
+    const type    = typeMatch ? typeMatch[1] : null;
+    let desc = rest;
+    if (typeMatch) desc = rest.slice(0, typeMatch.index).trim();
+    if (!desc) desc = rest.replace(/[\d,]+\.\d{2}/g, '').replace(/\b(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS)\b/g, '').trim();
+    let amountIn = 0, amountOut = 0, balance = null;
+    if (amounts.length >= 2) {
+      balance = amounts[amounts.length - 1];
+      if (type && inTypes.includes(type))  amountIn  = amounts[0];
+      else if (type && outTypes.includes(type)) amountOut = amounts[0];
+      else amountOut = amounts[0];
+    } else if (amounts.length === 1) {
+      if (type && inTypes.includes(type)) amountIn  = amounts[0];
+      else                                amountOut = amounts[0];
+    }
+    transactions.push({ date, description: desc, type, amountIn, amountOut, runningBalance: balance });
+  }
+  return transactions;
+}
+
+function parseLloydsDate(str) {
+  if (!str) return null;
+  const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+  const parts = str.trim().split(/\s+/);
+  if (parts.length !== 3) return null;
+  const [d, mon, y] = parts;
+  const m  = MONTHS[mon.toLowerCase().slice(0,3)];
+  if (!m) return null;
+  const yr = parseInt(y) < 100 ? 2000 + parseInt(y) : parseInt(y);
+  return `${yr}-${String(m).padStart(2,'0')}-${String(parseInt(d)).padStart(2,'0')}`;
+}
+
+// ─── REVOLUT CURRENT PARSER ────────────────────
+/*
+  Columns: Date | Description | Money out | Money in | Balance
+  Date format: "15 Apr 2026"
+  Foreign transactions have sub-rows (Fee, Rate, EUR) — skip them.
+  Two sections: "Pending" and "Account transactions"
+*/
+function parseRevolutCurrent(text) {
+  const transactions = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Date pattern: "15 Apr 2026"
+  const DATE_LINE_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})\s+(.+)/i;
+
+  // Sub-row patterns to skip
+  const SKIP_RE = /^(Fee|Rate|EUR|USD|GBP\s+\d|Exchange rate)/i;
+
+  let isPending = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (/Pending/i.test(line) && line.length < 20) { isPending = true; continue; }
+    if (/Account\s+transactions/i.test(line))       { isPending = false; continue; }
+    if (SKIP_RE.test(line))                          continue;
+
+    const dateMatch = line.match(DATE_LINE_RE);
+    if (!dateMatch) continue;
+
+    const date    = parseRevolutDate(dateMatch[1]);
+    const rest    = dateMatch[2];
+
+    // Extract amounts — Revolut Current: Money Out then Money In then Balance
+    const amounts = [...rest.matchAll(/[\d,]+\.\d{2}/g)].map(m => parseFloat(m[0].replace(/,/g, '')));
+
+    // Description is rest with amounts stripped
+    const desc = rest.replace(/[\d,]+\.\d{2}/g, '').replace(/[£€$]/g, '').trim().replace(/\s+/g, ' ');
+
+    let amountIn = 0, amountOut = 0, balance = null;
+
+    if (amounts.length >= 3) {
+      // Revolut layout: out, in, balance (blanks if 0)
+      amountOut = amounts[0];
+      amountIn  = amounts[1];
+      balance   = amounts[2];
+    } else if (amounts.length === 2) {
+      // Might be (out, balance) or (in, balance). Heuristic: check description.
+      balance = amounts[1];
+      if (isPending || /top.?up|interest|deposit|received/i.test(desc)) amountIn = amounts[0];
+      else amountOut = amounts[0];
+    } else if (amounts.length === 1) {
+      amountOut = amounts[0];
+    }
+
+    transactions.push({
+      date,
+      description: desc,
+      type: isPending ? 'PENDING' : null,
+      amountIn,
+      amountOut,
+      runningBalance: balance,
+      isPending,
+    });
+  }
+
+  console.log(`[parseRevolutCurrent] parsed ${transactions.length} transactions`);
+  return transactions;
+}
+
+// ─── REVOLUT SAVINGS PARSER ────────────────────
+/*
+  Columns: Date | Description | Money out | Money in | Balance
+  Mostly: Gross Interest (daily) + Deposit/Withdrawal
+*/
+function parseRevolutSavings(text) {
+  const transactions = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const DATE_LINE_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})\s+(.+)/i;
+
+  for (const line of lines) {
+    const dateMatch = line.match(DATE_LINE_RE);
+    if (!dateMatch) continue;
+
+    const date  = parseRevolutDate(dateMatch[1]);
+    const rest  = dateMatch[2];
+    const amounts = [...rest.matchAll(/[\d,]+\.\d{2}/g)].map(m => parseFloat(m[0].replace(/,/g, '')));
+    const desc  = rest.replace(/[\d,]+\.\d{2}/g, '').replace(/[£€$%]/g, '').trim().replace(/\s+/g, ' ');
+
+    let amountIn = 0, amountOut = 0, balance = null;
+    const isInterest  = /gross\s*interest|interest\s*earned/i.test(desc);
+    const isDeposit   = /deposit|top.?up/i.test(desc);
+    const isWithdraw  = /withdrawal|transfer\s*out/i.test(desc);
+
+    if (amounts.length >= 2) {
+      balance = amounts[amounts.length - 1];
+      if (isWithdraw) amountOut = amounts[0];
+      else            amountIn  = amounts[0]; // interest + deposits
+    } else if (amounts.length === 1) {
+      if (isWithdraw) amountOut = amounts[0];
+      else            amountIn  = amounts[0];
+    }
+
+    // Tag interest separately via category in DB
+    transactions.push({
+      date,
+      description: desc,
+      type: isInterest ? 'INT' : (isDeposit ? 'DEP' : (isWithdraw ? 'WDL' : null)),
+      amountIn,
+      amountOut,
+      runningBalance: balance,
+    });
+  }
+
+  console.log(`[parseRevolutSavings] parsed ${transactions.length} transactions`);
+  return transactions;
+}
+
+function parseRevolutDate(str) {
+  if (!str) return null;
+  const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+  const parts = str.trim().split(/\s+/);
+  if (parts.length !== 3) return null;
+  const [d, mon, y] = parts;
+  const m  = MONTHS[mon.toLowerCase().slice(0,3)];
+  if (!m) return null;
+  return `${y}-${String(m).padStart(2,'0')}-${String(parseInt(d)).padStart(2,'0')}`;
+}
+
+// ─── AMEX GOLD PARSER ──────────────────────────────
+/*
+  Amex UK statement PDF — standard layout as of 2025/26.
+
+  Header section contains account summary (balance, min payment, due date).
+  Transactions appear in two possible sections:
+    - "New Charges"       — purchases made this period
+    - "Payments"          — credits / payments received
+  (Some statements also have "Fees and Adjustments")
+
+  Typical transaction line layout (space-separated after PDF.js extraction):
+    DATE   DESCRIPTION   [FOREIGN AMOUNT]   GBP_AMOUNT
+
+  Date format: "01 Apr 26" (day Month YY) — same two-digit year as Lloyds.
+
+  Amount column:
+    - Charges:  positive number  e.g. "24.99"
+    - Payments/credits: may be prefixed with a minus  e.g. "-150.00"
+      or appear in a separate "Payments" section — we infer direction
+      from section context.
+
+  No running balance column — Amex statements don't show a per-row balance.
+
+  Foreign currency transactions add an extra line with the original
+  currency amount and exchange rate — we skip those sub-rows, same
+  strategy as Revolut Current.
+
+  Strategy:
+    1. Split text into lines.
+    2. Track which section we're in (New Charges / Payments / Fees).
+    3. For each line, try to match: date at start, then description,
+       then optional foreign amount (e.g. "USD 12.34"), then GBP amount.
+    4. Skip sub-rows: lines that start with currency codes or "Rate".
+    5. Infer amountIn vs amountOut from section and amount sign.
+
+  NOTE: This parser is written speculatively against the standard Amex
+  UK PDF format. Test against your actual April/May 2026 statement and
+  adjust the section header patterns or column offsets as needed.
+  Console logs the raw extracted text to help debug mismatches.
+*/
+function parseAmex(text) {
+  const transactions = [];
+  const lines = text.split('
+').map(l => l.trim()).filter(Boolean);
+
+  // Date pattern: "01 Apr 26" (same as Lloyds — two-digit year)
+  const DATE_START_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+)/i;
+
+  // Sub-rows to skip: foreign currency lines and rate lines
+  const SKIP_RE = /^(USD|EUR|AUD|CAD|JPY|CHF|SEK|NOK|DKK|SGD|HKD|NZD|Rate\s|Exchange)/i;
+
+  // Section headers
+  const SECTION_CHARGES  = /new\s+charges|transactions|purchases/i;
+  const SECTION_PAYMENTS = /payments?\s+and\s+credits?|payments?/i;
+  const SECTION_FEES     = /fees?\s+and\s+adjust|interest\s+charge/i;
+
+  let section = 'charges'; // default — most lines will be charges
+
+  for (const line of lines) {
+    // Update section context
+    if (SECTION_PAYMENTS.test(line) && line.length < 40) { section = 'payments'; continue; }
+    if (SECTION_CHARGES.test(line)  && line.length < 40) { section = 'charges';  continue; }
+    if (SECTION_FEES.test(line)     && line.length < 40) { section = 'fees';     continue; }
+
+    // Skip foreign currency sub-rows
+    if (SKIP_RE.test(line)) continue;
+
+    const dateMatch = line.match(DATE_START_RE);
+    if (!dateMatch) continue;
+
+    const date = parseLloydsDate(dateMatch[1]); // same format — reuse Lloyds date parser
+    if (!date) continue;
+
+    const rest = dateMatch[2];
+
+    // Extract all numeric amounts from the rest of the line
+    // Amex amounts may be negative (credits) — match optional leading minus
+    const amountMatches = [...rest.matchAll(/-?[\d,]+\.\d{2}/g)];
+    if (amountMatches.length === 0) continue;
+
+    // The GBP amount is always the last number on the line.
+    // If there are 2+ numbers, the first is likely a foreign currency amount — skip it.
+    const rawAmount = amountMatches[amountMatches.length - 1][0].replace(/,/g, '');
+    const amount    = parseFloat(rawAmount);
+    if (isNaN(amount)) continue;
+
+    // Description: everything before the first amount, stripped of noise
+    const firstAmtIdx = rest.indexOf(amountMatches[0][0]);
+    let desc = rest.slice(0, firstAmtIdx).trim().replace(/\s+/g, ' ');
+    if (!desc) desc = rest.replace(/-?[\d,]+\.\d{2}/g, '').trim().replace(/\s+/g, ' ');
+
+    // Determine direction:
+    //   - Negative amount OR in payments section → money coming back (amountIn)
+    //   - Positive amount in charges/fees section → spend (amountOut)
+    let amountIn = 0, amountOut = 0;
+    if (amount < 0 || section === 'payments') {
+      amountIn  = Math.abs(amount);
+    } else {
+      amountOut = Math.abs(amount);
+    }
+
+    // Amex doesn't have Lloyds-style type codes — we synthesise one
+    // so the rest of the categorisation pipeline has something to work with.
+    const type = section === 'payments' ? 'PAY' : (section === 'fees' ? 'FEE' : 'PUR');
+
+    transactions.push({
+      date,
+      description: desc,
+      type,
+      amountIn,
+      amountOut,
+      runningBalance: null, // Amex statements have no per-row balance
+    });
+  }
+
+  console.log(`[parseAmex] parsed ${transactions.length} transactions`);
+
+  // If we got nothing, dump the raw text so it's easy to debug format differences
+  if (transactions.length === 0) {
+    console.warn('[parseAmex] zero results — raw text follows:');
+    console.warn(text.slice(0, 2000));
+  }
+
+  return transactions;
+}
+
+
+// ═══════════════════════════════════════════════
+// CATEGORISATION
+// ═══════════════════════════════════════════════
+/*
+  categorise(t, account)
+  t       — parsed transaction object
+  account — the Supabase account row (has .account_number and .name)
+
+  Grocery reimbursement runs first so it intercepts transactions that would
+  otherwise be swallowed by the generic internal transfer check.
+  See isGroceryReimbursement() for the full two-sided logic.
+*/
+function categorise(t, account) {
+  // ── Grocery reimbursement (runs before internal transfer check) ───────
+  if (isGroceryReimbursement(t, account)) return 'groceries';
+
+  // ── Standard internal transfer ────────────────────────────────────────
+  if (isInternalTransfer(t)) return 'transfer';
+
+  // ── Commission ────────────────────────────────────────────────────────
+  if (isCommission(t)) return 'commission';
+
+  // ── Revolut savings interest ──────────────────────────────────────────
+  if (t.type === 'INT') return 'interest';
+
+  // ── Rule-based matching ───────────────────────────────────────────────
+  for (const rule of CATEGORY_RULES) {
+    if (rule.pattern.test(t.description)) return rule.cat;
+  }
+
+  // ── Type-based fallbacks ──────────────────────────────────────────────
+  if (t.type === 'FPI' || t.type === 'BGC' || t.type === 'DEP') return 'income';
+  if (t.type === 'DD')  return 'bills';
+  if (t.type === 'SO')  return 'bills';
+  if (t.type === 'DEB') return 'spending';
+
+  return 'other';
+}
+
+/*
+  Grocery budget logic — £300/mo
+  ─────────────────────────────────────────────────────────────────────────
+  Flow:
+    1. You buy groceries on Amex, Lloyds credit, or Main Current debit.
+    2. You then transfer the exact same amount OUT of Rent & Bills (48939060)
+       back to whichever account you spent from, reimbursing yourself.
+
+  This means two transactions need tagging as 'groceries':
+
+  A) OUTGOING TFR from Rent & Bills to any own account, amount ≤ £300
+     — this is the budget being deployed from the holding account.
+     Source account: always 48939060 (Rent & Bills).
+
+  B) INCOMING TFR on the receiving account (Main Current, Lloyds credit,
+     Amex) from Rent & Bills, amount ≤ £300
+     — this is the reimbursement credit landing on the spending account.
+     Without tagging this side, the receiving account shows unexplained
+     income and the grocery spend looks unmatched.
+
+  The actual purchase transaction (LIDL, TESCO etc) is tagged 'groceries'
+  separately via the CATEGORY_RULES pattern match — that doesn't change.
+
+  GROCERY_BUDGET_CAP (£300) is the guard against large own-account
+  transfers (rent, savings top-ups) being misclassified. If you ever
+  split a grocery shop across two transfers, raise this cap.
+*/
+const GROCERY_BUDGET_CAP = 300;
+
+function isGroceryReimbursement(t, account) {
+  if (!account) return false;
+  const accNum = (account.account_number || '').replace(/\s/g, '');
+
+  // ── Side A: outgoing from Rent & Bills → Main Current ───────────────
+  // The reimbursement always goes to Main Current, so the description
+  // on the Rent & Bills statement will reference 39741868 or R LANGFORD.
+  if (accNum === RENT_AND_BILLS_ACC_NUM) {
+    if (!t.amountOut || parseFloat(t.amountOut) <= 0) return false;
+    if (t.type !== 'TFR' && t.type !== 'FPO')         return false;
+    if (parseFloat(t.amountOut) > GROCERY_BUDGET_CAP)  return false;
+    const desc = (t.description || '').toUpperCase();
+    return (
+      desc.includes(MAIN_CURRENT_ACC_NUM) ||
+      desc.includes('R LANGFORD') ||
+      desc.includes('RUDI LANGFORD') ||
+      desc.includes('LANGFORD R')
+    );
+  }
+
+  // ── Side B: incoming credit landing on Main Current from Rent & Bills
+  // The reimbursement always lands here regardless of which card was used
+  // for the original grocery purchase. Description on the Main Current
+  // statement will reference 48939060 (Rent & Bills account number).
+  if (accNum === MAIN_CURRENT_ACC_NUM) {
+    if (!t.amountIn || parseFloat(t.amountIn) <= 0)   return false;
+    if (t.type !== 'TFR' && t.type !== 'FPI')          return false;
+    if (parseFloat(t.amountIn) > GROCERY_BUDGET_CAP)   return false;
+    const desc = (t.description || '').toUpperCase();
+    return desc.includes(RENT_AND_BILLS_ACC_NUM);
+  }
+
+  return false;
+}
+
+function isInternalTransfer(t) {
+  // Type must be a transfer type — DEB/DD payments are never internal
+  const TRANSFER_TYPES = ['TFR', 'FPO', 'FPI'];
+  if (!TRANSFER_TYPES.includes(t.type)) return false;
+  const desc = (t.description || '').toUpperCase();
+  return OWN_ACCOUNT_MARKERS.some(m => desc.includes(m.toUpperCase()));
+}
+
+function isCommission(t) {
+  return /INFINITY\s*RENEW/i.test(t.description || '');
+}
+
+// ═══════════════════════════════════════════════
+// SUBSCRIPTION DETECTION
+// ═══════════════════════════════════════════════
+/*
+  Logic: scan all transactions for the given account. Group by normalised description.
+  If the same description appears in 2+ distinct calendar months with similar amounts,
+  it's a subscription candidate.
+*/
+async function detectSubscriptions(accountId) {
+  const { data: txns } = await sb
+    .from('transactions')
+    .select('description, amount_out, date, category')
+    .eq('account_id', accountId)
+    .eq('is_internal_transfer', false)
+    .gt('amount_out', 0);
+
+  if (!txns || txns.length === 0) return;
+
+  // Group by normalised description
+  const groups = {};
+  txns.forEach(t => {
+    const key = normaliseDesc(t.description);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+
+  // Find recurring: same desc in 2+ months
+  const candidates = [];
+  for (const [key, rows] of Object.entries(groups)) {
+    const months = new Set(rows.map(r => r.date?.slice(0, 7))); // YYYY-MM
+    if (months.size >= 2) {
+      // Compute median amount
+      const amounts  = rows.map(r => parseFloat(r.amount_out)).sort((a,b) => a-b);
+      const median   = amounts[Math.floor(amounts.length / 2)];
+      const lastSeen = rows.map(r => r.date).sort().pop();
+      const name     = rows[0].description.slice(0, 60);
+
+      candidates.push({ name, amount: median, lastSeen, key });
+    }
+  }
+
+  if (candidates.length === 0) return;
+
+  // Check which ones already exist in subscriptions table
+  const { data: existing } = await sb
+    .from('subscriptions')
+    .select('name')
+    .eq('user_id', currentUser.id);
+
+  const existingNames = new Set((existing || []).map(s => normaliseDesc(s.name)));
+
+  const toInsert = candidates.filter(c => !existingNames.has(c.key));
+
+  if (toInsert.length === 0) return;
+
+  const rows = toInsert.map(c => ({
+    user_id:   currentUser.id,
+    name:      c.name,
+    amount:    c.amount,
+    cycle:     'monthly',
+    icon:      getSubIcon(c.name),
+    approved:  false,
+    last_seen: c.lastSeen,
+  }));
+
+  const { error } = await sb.from('subscriptions').insert(rows);
+  if (error) console.error('[detectSubscriptions] insert error:', error);
+  else console.log(`[detectSubscriptions] inserted ${rows.length} candidates`);
+}
+
+function normaliseDesc(desc) {
+  return (desc || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40);
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD HISTORY
+// ═══════════════════════════════════════════════
+async function loadUploadHistory() {
+  const { data: stmts } = await sb
+    .from('statements')
+    .select('*, accounts(name, bank)')
+    .order('uploaded_at', { ascending: false })
+    .limit(20);
+
+  const listEl  = document.getElementById('history-list');
+  const emptyEl = document.getElementById('history-empty');
+
+  if (!stmts || stmts.length === 0) {
+    listEl.style.display  = 'none';
+    emptyEl.style.display = '';
+    return;
+  }
+
+  listEl.style.display  = 'block';
+  emptyEl.style.display = 'none';
+
+  let html = '';
+  stmts.forEach(s => {
+    const accName = s.accounts?.name || 'Unknown';
+    const bank    = s.accounts?.bank || '';
+    const period  = s.period_end ? formatMonthYear(s.period_end) : '—';
+    const uploadDate = s.uploaded_at
+      ? new Date(s.uploaded_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
+      : '';
+
+    html += `
+      <div class="history-item">
+        <div class="history-icon">✅</div>
+        <div class="history-info">
+          <div class="history-name">${escHtml(accName)} — ${period}</div>
+          <div class="history-meta">${bank}${uploadDate ? ' · Uploaded ' + uploadDate : ''}</div>
+        </div>
+        <span class="pill pill-green" style="font-size:0.62rem">Done</span>
+      </div>`;
+  });
+
+  listEl.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+// PARSE PROGRESS UI
+// ═══════════════════════════════════════════════
+function showParseProgress(pct, label) {
+  const el = document.getElementById('parse-progress');
+  el.classList.add('visible');
+  document.getElementById('parse-progress-label').textContent = label;
+  document.getElementById('parse-progress-fill').style.width = pct + '%';
+}
+
+function hideParseProgress() {
+  document.getElementById('parse-progress').classList.remove('visible');
+  document.getElementById('parse-progress-fill').style.width = '0%';
+}
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function formatGBP(n) {
+  const num = parseFloat(n) || 0;
+  return '£' + num.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNum(n) {
+  return (parseFloat(n) || 0).toLocaleString('en-GB');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatMonthYear(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function getCategoryIcon(cat, desc) {
+  const d = (desc || '').toLowerCase();
+  if (cat === 'commission')   return '💼';
+  if (cat === 'subscription') {
+    if (/netflix/i.test(d))       return '🎬';
+    if (/ee\s|ee\./i.test(d))     return '📱';
+    if (/virgin/i.test(d))        return '🌐';
+    if (/claude|anthropic/i.test(d)) return '🤖';
+    if (/hastings/i.test(d))      return '🚗';
+    if (/ashbourne/i.test(d))     return '🏋️';
+    if (/dvla/i.test(d))          return '🚗';
+    if (/google\s*play/i.test(d)) return '📱';
+    if (/spotify/i.test(d))       return '🎵';
+    if (/amazon/i.test(d))        return '📦';
+    return '↻';
+  }
+  if (cat === 'cs2')          return '🎮';
+  if (cat === 'bills')        return '🏠';
+  if (cat === 'groceries')    return '🛒';
+  if (cat === 'income')       return '💷';
+  if (cat === 'interest')     return '💹';
+  if (cat === 'transfer')     return '↔';
+  if (/restaurant|cafe|coffee|eat/i.test(d)) return '🍽️';
+  if (/travel|hotel|flight|airbnb/i.test(d)) return '✈️';
+  if (/amazon|ebay|aliexpress/i.test(d))     return '📦';
+  if (/fuel|petrol|bp |shell /i.test(d))     return '⛽';
+  return '•';
+}
+
+function getSubIcon(name) {
+  const n = (name || '').toUpperCase();
+  for (const [key, icon] of Object.entries(SUB_ICONS)) {
+    if (n.includes(key)) return icon;
+  }
+  return SUB_ICONS.DEFAULT;
+}
+
+// ═══════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════
+function initDragDrop() {
+  const zone = document.getElementById('upload-drop-zone');
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') {
+      // Simulate file input selection
+      const input = document.getElementById('pdf-file-input');
+      const dt    = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      onFileSelected({ target: input });
+    } else {
+      showToast('Please drop a PDF file');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+(async () => {
+  // Check existing session
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    bootApp();
+  }
+
+  // Listen for auth changes
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+    }
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+    }
+  });
+
+  initDragDrop();
+})();
+</script>
+
+</body>
+</html>
