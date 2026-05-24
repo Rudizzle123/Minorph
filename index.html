@@ -2675,7 +2675,7 @@ function parseLloyds(text) {
     }
 
     const type    = rowToks[typeIdx];
-    const desc    = rowToks.slice(0, typeIdx).join(" ").trim();
+    const desc    = rowToks.slice(0, typeIdx).join(" ").replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "").trim();
     const afterTk = rowToks.slice(typeIdx + 1);
     const nums    = afterTk.filter(isMoney).map(n => parseFloat(n.replace(/,/g, "")));
 
