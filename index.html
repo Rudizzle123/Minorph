@@ -2631,12 +2631,12 @@ function parseLloyds(text) {
 
   const TYPES = "DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE";
   const rowRe = new RegExp(
-    "(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})" +
-    "\s+([^\d]+?)" +
-    "\s+(" + TYPES + ")" +
-    "(?:\s+([\d,]+\.\d{2}))?" +
-    "(?:\s+([\d,]+\.\d{2}))?" +
-    "(?:\s+([\d,]+\.\d{2}))?",
+    "(\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{2})" +
+    "\\s+(.+?)" +
+    "\\s+(" + TYPES + ")" +
+    "(?:\\s+([\\d,]+\\.\\d{2}))?" +
+    "(?:\\s+([\\d,]+\\.\\d{2}))?" +
+    "(?:\\s+([\\d,]+\\.\\d{2}))?",
     "gi"
   );
 
