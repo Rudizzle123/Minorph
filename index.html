@@ -2679,8 +2679,7 @@ function parseLloyds(text) {
   }
 
   console.warn("[parseLloyds] regex yielded 0, trying line-by-line fallback");
-  return parseLloydsLineFallback(text.split("
-")).map(l => l.trim()).filter(Boolean));
+  return parseLloydsLineFallback(text.split("\n").map(l => l.trim()).filter(Boolean));
 }
 
 function parseLloydsLineFallback(lines) {
