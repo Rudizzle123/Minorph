@@ -10,8 +10,8 @@
      SUPABASE — paste your project URL and anon key here
 ═══════════════════════════════════════════ -->
 <script>
-  const SUPABASE_URL  = 'https://soplpclugrtwahtvlkdi.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvcGxwY2x1Z3J0d2FodHZsa2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDM5MDcsImV4cCI6MjA5NTIxOTkwN30.9oxE91wA9V1Zs_MHtpNFbvnBzDp2ERSebIKnciJXp1g';
+  const SUPABASE_URL  = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -2605,122 +2605,150 @@ async function extractPdfText(file, onProgress) {
 
 // ─── LLOYDS PARSER ─────────────────────────────
 /*
-  Column order: Date | Description | Type | Money In (£) | Money Out (£) | Balance (£)
-  Date format:  "07 Apr 26"
-  Strategy: scan for lines that start with a date pattern, then extract columns.
-  PDF.js text may land items in arbitrary order; we use a line-reconstruction approach.
+  PDF.js extracts Lloyds statements in a labelled token format:
+    "Date\n01 Apr 26\nDescription\nDVLA-HGZ7582\nType\nDD Money In (£) blank.\nMoney Out (£)\n17.06\nBalance (£)\n938.07"
+  Strategy: find all Date tokens, then extract the following Description/Type/amounts.
+  Also handles the older single-line format as fallback.
 */
 function parseLloyds(text) {
   const transactions = [];
-  const DATE_RE = /\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\b/gi;
-  const AMOUNT_RE = /[\d,]+\.\d{2}/g;
-  const TYPES = ['DD', 'DEB', 'FPI', 'FPO', 'TFR', 'SO', 'CPT', 'COR', 'VIS'];
-
-  // Split into lines, removing empties
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // We'll scan lines for date pattern; each matching line starts a transaction row
-  // Lloyds PDF typically puts each field space-separated on the same "line" after
-  // text reconstruction.
-  //
-  // Approach: find all tokens, then group by date occurrence.
-  const tokens = [];
-  lines.forEach(line => {
-    line.split(/\s{2,}/).forEach(t => {
-      const cleaned = t.trim();
-      if (cleaned) tokens.push(cleaned);
-    });
-  });
+  // Strategy 1: labelled token format (what PDF.js produces for this Lloyds PDF)
+  // Look for the pattern: "Date\n<date>\nDescription\n<desc>\nType\n<type> ..."
+  const DATE_RE = /^\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2}$/i;
+  const TYPE_RE = /^(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE)/i;
+  const AMOUNT_RE = /^[\d,]+\.\d{2}$/;
+  const inTypes  = new Set(['FPI', 'BGC', 'COR', 'DEP', 'MPI']);
+  const outTypes = new Set(['DD', 'DEB', 'FPO', 'SO', 'CPT', 'ATM', 'FEE', 'MPO', 'PAY']);
 
-  // Re-join all text for regex scanning
+  // Find all date line indices
+  const dateIndices = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (DATE_RE.test(lines[i])) dateIndices.push(i);
+  }
+
+  if (dateIndices.length > 0) {
+    console.log(`[parseLloyds] found ${dateIndices.length} date markers, using labelled token strategy`);
+    for (let di = 0; di < dateIndices.length; di++) {
+      const start = dateIndices[di];
+      const end   = di + 1 < dateIndices.length ? dateIndices[di + 1] : Math.min(start + 12, lines.length);
+      const chunk = lines.slice(start, end);
+
+      const dateStr = chunk[0];
+      const date    = parseLloydsDate(dateStr);
+      if (!date) continue;
+
+      // Find description: line after "Description" label, or first non-label line after date
+      let desc = '';
+      let type = null;
+      const amounts = [];
+
+      for (let j = 1; j < chunk.length; j++) {
+        const l = chunk[j];
+        // Skip header labels
+        if (/^(Date|Description|Type|Money In|Money Out|Balance|Column|\(£\)|blank\.)/.test(l)) continue;
+        if (DATE_RE.test(l)) break;
+
+        // Type code — may appear as "DD Money In (£) blank." or just "DD"
+        const typeMatch = l.match(/^(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE)\b/i);
+        if (typeMatch && !type) {
+          type = typeMatch[1].toUpperCase();
+          continue;
+        }
+
+        // Amount
+        if (AMOUNT_RE.test(l.replace(/,/g, ''))) {
+          amounts.push(parseFloat(l.replace(/,/g, '')));
+          continue;
+        }
+
+        // Description (first meaningful non-label, non-type, non-amount line)
+        if (!desc && l.length > 0 && !/^\d+$/.test(l)) {
+          desc = l;
+        }
+      }
+
+      // Determine in/out from amounts and type
+      let amountIn = 0, amountOut = 0, balance = null;
+      if (amounts.length >= 2) {
+        balance = amounts[amounts.length - 1];
+        const val = amounts[0];
+        if (type && inTypes.has(type))  amountIn  = val;
+        else if (type && outTypes.has(type)) amountOut = val;
+        else amountOut = val;
+      } else if (amounts.length === 1) {
+        const val = amounts[0];
+        if (type && inTypes.has(type))  amountIn  = val;
+        else                            amountOut = val;
+      }
+
+      if (desc || type) {
+        transactions.push({ date, description: desc || '', type: type || 'OTHER', amountIn, amountOut, runningBalance: balance });
+      }
+    }
+  }
+
+  if (transactions.length > 0) {
+    console.log(`[parseLloyds] parsed ${transactions.length} transactions via labelled token strategy`);
+    return transactions;
+  }
+
+  // Strategy 2: single-line regex (older PDF format)
+  console.warn('[parseLloyds] labelled token strategy yielded 0, trying single-line regex');
   const raw = lines.join(' | ');
-
-  // Match transaction blocks: DATE ... TYPE ... amounts
-  // Pattern: date, then a description (words/numbers), then type code, then optional amounts
-  // We'll use a stateful parse over a flat token list reconstructed from lines.
-
-  // Better approach: extract a flat list of text items in document order and reconstruct rows.
-  // Each Lloyds row follows: Date  Description  Type  [Money In]  [Money Out]  Balance
-  // We identify rows by the date marker.
-
   const rowRe = /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+?)\s+(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM)\s+([\d,]+\.\d{2})?\s*([\d,]+\.\d{2})?\s*([\d,]+\.\d{2})/gi;
-
   let match;
   while ((match = rowRe.exec(raw)) !== null) {
     const [, dateStr, desc, type, rawIn, rawOut, rawBal] = match;
-    const date     = parseLloydsDate(dateStr);
+    const date      = parseLloydsDate(dateStr);
     const amountIn  = rawIn  ? parseFloat(rawIn.replace(/,/g, ''))  : 0;
     const amountOut = rawOut ? parseFloat(rawOut.replace(/,/g, '')) : 0;
     const balance   = rawBal ? parseFloat(rawBal.replace(/,/g, '')) : null;
-
     if (!date) continue;
-
-    transactions.push({
-      date,
-      description: desc.trim(),
-      type,
-      amountIn,
-      amountOut,
-      runningBalance: balance,
-    });
+    transactions.push({ date, description: desc.trim(), type, amountIn, amountOut, runningBalance: balance });
   }
 
-  // Fallback: line-by-line parse if regex yields nothing
-  if (transactions.length === 0) {
-    console.warn('[parseLloyds] regex yielded 0, trying line-by-line fallback');
-    return parseLloydsLineFallback(lines);
+  if (transactions.length > 0) {
+    console.log(`[parseLloyds] parsed ${transactions.length} transactions via single-line regex`);
+    return transactions;
   }
 
-  console.log(`[parseLloyds] parsed ${transactions.length} transactions via regex`);
-  return transactions;
+  // Strategy 3: line-by-line fallback
+  console.warn('[parseLloyds] all strategies yielded 0, trying line-by-line fallback');
+  return parseLloydsLineFallback(lines);
 }
 
 function parseLloydsLineFallback(lines) {
   const transactions = [];
   const DATE_LINE_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+/i;
+  const inTypes  = ['FPI', 'BGC', 'COR', 'DEP', 'MPI'];
+  const outTypes = ['DD', 'DEB', 'FPO', 'SO', 'CPT', 'ATM'];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const dateMatch = line.match(DATE_LINE_RE);
     if (!dateMatch) continue;
-
     const date    = parseLloydsDate(dateMatch[1]);
     const rest    = line.slice(dateMatch[0].length);
     const amounts = [...rest.matchAll(/[\d,]+\.\d{2}/g)].map(m => parseFloat(m[0].replace(/,/g, '')));
     const typeMatch = rest.match(/\b(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM)\b/);
     const type    = typeMatch ? typeMatch[1] : null;
-
-    // Description is everything before the type code
     let desc = rest;
     if (typeMatch) desc = rest.slice(0, typeMatch.index).trim();
     if (!desc) desc = rest.replace(/[\d,]+\.\d{2}/g, '').replace(/\b(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS)\b/g, '').trim();
-
-    // Lloyds: some PDFs put money-in before money-out, some after.
-    // We use the type to infer direction when ambiguous.
     let amountIn = 0, amountOut = 0, balance = null;
-    const inTypes  = ['FPI', 'BGC', 'COR'];
-    const outTypes = ['DD', 'DEB', 'FPO', 'SO', 'CPT', 'ATM'];
-
-    if (amounts.length >= 3) {
-      // 3 amounts = in, out, balance (one of in/out will be 0 = missing from PDF)
-      // Actually Lloyds only fills in ONE of money-in / money-out per row.
-      // Check context clue: if type is in inTypes it's money-in.
+    if (amounts.length >= 2) {
       balance = amounts[amounts.length - 1];
-      if (type && inTypes.includes(type))  { amountIn  = amounts[0]; }
-      else if (type && outTypes.includes(type)) { amountOut = amounts[0]; }
-      else { amountOut = amounts[0]; } // default: outgoing
-    } else if (amounts.length === 2) {
-      balance    = amounts[1];
-      if (type && inTypes.includes(type)) amountIn  = amounts[0];
-      else                                amountOut = amounts[0];
+      if (type && inTypes.includes(type))  amountIn  = amounts[0];
+      else if (type && outTypes.includes(type)) amountOut = amounts[0];
+      else amountOut = amounts[0];
     } else if (amounts.length === 1) {
       if (type && inTypes.includes(type)) amountIn  = amounts[0];
       else                                amountOut = amounts[0];
     }
-
     transactions.push({ date, description: desc, type, amountIn, amountOut, runningBalance: balance });
   }
-
   return transactions;
 }
 
@@ -2906,7 +2934,8 @@ function parseRevolutDate(str) {
 */
 function parseAmex(text) {
   const transactions = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = text.split('
+').map(l => l.trim()).filter(Boolean);
 
   // Date pattern: "01 Apr 26" (same as Lloyds — two-digit year)
   const DATE_START_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+)/i;
