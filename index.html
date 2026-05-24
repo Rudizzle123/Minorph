@@ -2630,13 +2630,14 @@ function parseLloyds(text) {
   const flat = cleaned.split("\n").map(l => l.trim()).filter(Boolean).join(" ");
 
   const TYPES = "DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE";
+  // Match: date, anything up to the type code, type code, then rest of line up to next date
   const rowRe = new RegExp(
     "(\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{2})" +
     "\\s+(.+?)" +
     "\\s+(" + TYPES + ")" +
-    "(?:\\s+([\\d,]+\\.\\d{2}))?" +
-    "(?:\\s+([\\d,]+\\.\\d{2}))?" +
-    "(?:\\s+([\\d,]+\\.\\d{2}))?",
+    "([^A-Z]*?)(?=" +
+      "\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{2}" +
+      "|$)",
     "gi"
   );
 
@@ -2645,22 +2646,24 @@ function parseLloyds(text) {
 
   let match;
   while ((match = rowRe.exec(flat)) !== null) {
-    const [, dateStr, desc, type, a1, a2, a3] = match;
+    const [, dateStr, desc, type, afterType] = match;
     const date = parseLloydsDate(dateStr);
     if (!date) continue;
 
-    const nums = [a1, a2, a3].filter(Boolean).map(n => parseFloat(n.replace(/,/g, "")));
-    let amountIn = 0, amountOut = 0, balance = null;
+    // Extract all numbers from the portion after the type code
+    const nums = (afterType || "").match(/[\d,]+\.\d{2}/g);
+    const parsed = nums ? nums.map(n => parseFloat(n.replace(/,/g, ""))) : [];
 
-    if (nums.length >= 2) {
-      balance = nums[nums.length - 1];
-      const val = nums[0];
+    let amountIn = 0, amountOut = 0, balance = null;
+    if (parsed.length >= 2) {
+      balance = parsed[parsed.length - 1];
+      const val = parsed[0];
       if (inTypes.has(type))       amountIn  = val;
       else if (outTypes.has(type)) amountOut = val;
       else                         amountOut = val;
-    } else if (nums.length === 1) {
-      if (inTypes.has(type)) amountIn  = nums[0];
-      else                   amountOut = nums[0];
+    } else if (parsed.length === 1) {
+      if (inTypes.has(type)) amountIn  = parsed[0];
+      else                   amountOut = parsed[0];
     }
 
     if (type === "TFR") {
