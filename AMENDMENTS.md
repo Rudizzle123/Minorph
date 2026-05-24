@@ -1,4 +1,4 @@
-# Minorph — Project Amendments (Session 3)
+# Minorph — Project Amendments (Session 4)
 
 Update the project files before starting a new chat.
 
@@ -7,23 +7,26 @@ Update the project files before starting a new chat.
 ## Files to replace
 
 ### 1. `index.html` → replace entirely
-Download from the latest Claude output. Key changes this session:
-- Supabase URL and anon key are now populated (no longer placeholder)
-- `extractPdfText` now uses `item.hasEOL` for proper line breaks
-- `parseLloyds` completely rewritten — strips column label noise, flattens to one string, extracts amounts from the portion after the type code using a secondary regex scan rather than optional groups
-- `parseAmex` literal newline bug fixed
-- All `split('\n')` literal-newline-in-string bugs fixed
+Download the latest from Claude's output. Key changes this session:
+- `parseLloyds` rewritten with a **token-walking** approach (replaces the regex + line-fallback strategy that was producing 87 zero-amount rows)
+  - Tokenises whitespace-cleaned text after stripping column labels (`Date`, `Description`, `Type`, `Money In (£)`, `Money Out (£)`, `Balance (£)`, `blank.`, `(£)`)
+  - Walks tokens, treating each `day Mon yy` triplet as the start of a new row
+  - Within each row, finds the TYPE token, takes everything before it as the description, everything after as numbers (last = balance, first = amount)
+  - Type set deliberately narrowed to `DD, DEB, FPI, FPO, TFR, SO, CPT, COR, BGC, CHQ, ATM` to avoid description words like "PAY" being mis-detected as TYPE codes
+  - Strips leading/trailing non-alphanumeric chars from descriptions so rows render as `TAYLOR GREEN` not `. TAYLOR GREEN .`
+- Verbose `console.log` left in for next time debugging is needed: `tokens count`, `date positions found`, `parsed N transactions`, `sample`, plus `skip row (no type)` per skipped row
+- Line-by-line fallback removed (was producing the zero-amount garbage)
 
 ### 2. `README.md` → replace entirely
-Updated to reflect live infrastructure, actual Supabase URL, deployment workflow, clear-data SQL, and parser notes.
+Updated parser notes to reflect the new token-walking strategy.
 
 ---
 
 ## Current live state
 
-- App is live at `minorph.pages.dev`
-- Supabase project: `minorph` (separate from Infinity Renewables)
-- User: `cookihd101@gmail.com`, UUID: `5cebd01a-5b81-4bbd-9d2e-ca7f79ce020b`
+- App live at `minorph.pages.dev`
+- Supabase project: `minorph` (URL `https://soplpclugrtwahtvlkdi.supabase.co`)
+- User: `cookihd101@gmail.com`, UUID `5cebd01a-5b81-4bbd-9d2e-ca7f79ce020b`
 - 6 accounts seeded, 2 goals seeded
 - Cloudflare Pages connected to `Rudizzle123/Minorph` on GitHub — auto-deploys on push to `main`
 
@@ -33,29 +36,30 @@ Updated to reflect live infrastructure, actual Supabase URL, deployment workflow
 
 | Parser | Status |
 |---|---|
-| Lloyds Current | Fixed and tested — 70 transactions parsed from April 2026 statement. Amounts now correct. |
-| Lloyds Credit | Untested — same format, should work |
+| Lloyds Current | ✅ Verified — April 2026 statement returned 70 real transactions with correct amounts, descriptions, and balances |
+| Lloyds Credit | Untested — same Lloyds format, should work |
 | Revolut Current | Written, untested |
 | Revolut Savings | Written, untested |
 | Amex Gold | Speculative — first statement arrives 28 May 2026 |
 
 ---
 
-## Rules agreed this session (for next Claude to follow)
+## Things to do next session
 
-1. **One instruction at a time** — never give multiple options or steps at once. Give the single highest-confidence fix and wait for the result before the next step.
-2. **No code explanations** — Rudi doesn't need to know why code works, only what to do. Keep technical detail out of responses unless directly asked.
-3. **HTML updates** — when anything needs changing in index.html, just do it and output the file. Don't paste code into chat.
-4. **Workflow** — Rudi downloads the file, replaces local copy, commits and pushes in GitHub Desktop, Cloudflare auto-deploys. Don't suggest alternative workflows.
+- [ ] Upload remaining Lloyds Main Current months (Nov 2025 – Mar 2026)
+- [ ] Upload Lloyds Rent & Bills statements (verify grocery reimbursement logic works on real data)
+- [ ] Upload Lloyds Credit statements (sanity-check Lloyds parser holds for credit format)
+- [ ] Upload Revolut Current and Savings statements (first real test of those parsers)
+- [ ] Test Amex Gold parser on 28 May 2026 statement
+- [ ] Update Amex goal `current_amount` once the first Amex statement is processed
+- [ ] Refresh README and AMENDMENTS after the session
 
 ---
 
-## Things to do next session
+## Rules agreed for next Claude (see project instructions for full list)
 
-- [ ] Verify April statement upload shows correct amounts (was £0.00 before final fix)
-- [ ] Upload remaining Lloyds Main Current months (Nov 2025 – Mar 2026)
-- [ ] Upload Lloyds Credit statements
-- [ ] Upload Revolut Current and Savings statements
-- [ ] Test Amex Gold parser on 28 May 2026 statement
-- [ ] Update Amex goal `current_amount` once statement is processed
-- [ ] Update README and AMENDMENTS in project files
+1. **One instruction at a time** — give the single highest-confidence fix, wait for the result, then move on. Never list options or multi-step plans.
+2. **No code explanations in chat** — Rudi doesn't need the why. Output the file and tell him what to do.
+3. **HTML changes go in the file, not the chat** — never paste big code blocks into the message. Always download a fresh `index.html`.
+4. **Standard workflow** — Rudi downloads `index.html`, replaces local copy, commits and pushes via GitHub Desktop, Cloudflare auto-deploys. Don't suggest alternative workflows.
+5. **Trust the project files** — read `AMENDMENTS.md` and `README.md` at the start of every session to pick up current state.

@@ -134,7 +134,7 @@ insert into goals (user_id, name, target, current_amount, deadline, type) values
 ## Deployment
 
 ### Making changes
-1. Edit `index.html` locally
+1. Edit `index.html` locally (replace with file from Claude)
 2. GitHub Desktop → commit → push to `main`
 3. Cloudflare auto-deploys to `minorph.pages.dev`
 
@@ -146,25 +146,35 @@ Settings → Git repository → reconnect GitHub, then re-deploy.
 delete from transactions where account_id = (select id from accounts where account_number = '39741868');
 delete from statements  where account_id = (select id from accounts where account_number = '39741868');
 ```
-Change the account number to target a different account.
+Change the account number to target a different account. To nuke everything:
+```sql
+delete from transactions;
+delete from statements;
+```
 
 ---
 
 ## PDF Parsing
 
-### Lloyds (Current + Credit)
-PDF.js extracts items joined with spaces per line. The parser:
-1. Strips column label noise (`Date`, `Description`, `Type`, `Money In (£)`, `blank.` etc.)
-2. Flattens to one string
-3. Regex-matches: `DATE DESCRIPTION TYPE [amounts]`
-4. Extracts amounts from the portion after the type code
+### Lloyds (Current + Credit) — **token-walking parser**
+PDF.js gives back text with mixed-up column labels and values. The parser:
+1. **Strips label noise** — removes `Date`, `Description`, `Type`, `Money In (£)`, `Money Out (£)`, `Balance (£)`, `blank.`, `(£)`
+2. **Tokenises** the cleaned text on whitespace
+3. **Finds every date triplet** — `day(1–2 digits) Mon(3+ letters) yy(2 digits)` — these mark row boundaries
+4. **For each row** (tokens between two date triplets):
+   - Finds the first token that matches the TYPE set (`DD, DEB, FPI, FPO, TFR, SO, CPT, COR, BGC, CHQ, ATM`)
+   - Description = tokens before TYPE, stripped of leading/trailing punctuation
+   - Amounts = `\d+\.\d{2}` tokens after TYPE — last is balance, first is the in/out amount
+   - In/out direction is decided by TYPE (FPI/BGC/COR = in; rest = out)
+5. **TFR direction flip** — if the description references an own-account marker, swap in↔out so the transfer shows the correct side
 - Date format: `07 Apr 26`
-- Types: DD, DEB, FPI, FPO, TFR, SO, CPT, COR
+
+**Debugging:** parser logs token count, first 30 tokens, date positions found, parsed count, sample of 3, and any "skip row (no type)" lines.
 
 ### Revolut Current
 Columns: Date | Description | Money out | Money in | Balance
 - Date format: `15 Apr 2026`
-- Foreign sub-rows (Fee/Rate/EUR) are skipped
+- Foreign-currency sub-rows (Fee/Rate/EUR) are skipped
 
 ### Revolut Savings
 Same columns as Revolut Current. Interest entries tagged as `interest` category.
@@ -201,7 +211,7 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 ## Known issues / watch points
 
 - **Amex parser** — speculative, untested until 28 May 2026 statement
-- **Lloyds PDF column order** — parser now handles the space-joined labelled format; if amounts ever appear wrong, check whether a new statement format is being used
+- **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future Lloyds statement uses a code outside `DD/DEB/FPI/FPO/TFR/SO/CPT/COR/BGC/CHQ/ATM`, that row will be skipped with a `skip row (no type)` log — add the code and verify it can't collide with description words
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on a real Rent & Bills statement
 - **Revolut Savings balance** — assumes last number on each line is the balance
 
@@ -209,10 +219,12 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 
 ## Things still to do
 
-- [ ] Upload and verify Amex Gold statement (28 May 2026)
-- [ ] Upload remaining Lloyds months (Nov–Mar) and Lloyds Credit statements
+- [ ] Upload remaining Lloyds Main Current months (Nov 2025 – Mar 2026)
+- [ ] Upload Lloyds Rent & Bills statements
+- [ ] Upload Lloyds Credit statements
 - [ ] Upload Revolut Current and Savings statements
-- [ ] Verify Lloyds Credit parser works (same format as current — should just work)
+- [ ] Upload and verify Amex Gold statement (28 May 2026)
+- [ ] Update Amex goal `current_amount` once Amex parser is verified
 - [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
 - [ ] Search/filter transactions by description
