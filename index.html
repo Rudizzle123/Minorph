@@ -2627,8 +2627,7 @@ function parseLloyds(text) {
     .replace(/  +/g, " ");
 
   // Flatten all lines into one searchable string
-  const flat = cleaned.split("
-").map(l => l.trim()).filter(Boolean).join(" ");
+  const flat = cleaned.split("\n").map(l => l.trim()).filter(Boolean).join(" ");
 
   const TYPES = "DD|DEB|FPI|FPO|TFR|SO|CPT|COR|VIS|BGC|CHQ|ATM|MPI|MPO|PAY|DEP|FEE";
   const rowRe = new RegExp(
@@ -2681,7 +2680,7 @@ function parseLloyds(text) {
 
   console.warn("[parseLloyds] regex yielded 0, trying line-by-line fallback");
   return parseLloydsLineFallback(text.split("
-").map(l => l.trim()).filter(Boolean));
+")).map(l => l.trim()).filter(Boolean));
 }
 
 function parseLloydsLineFallback(lines) {
