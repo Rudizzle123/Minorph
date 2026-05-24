@@ -2906,8 +2906,7 @@ function parseRevolutDate(str) {
 */
 function parseAmex(text) {
   const transactions = [];
-  const lines = text.split('
-').map(l => l.trim()).filter(Boolean);
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
   // Date pattern: "01 Apr 26" (same as Lloyds — two-digit year)
   const DATE_START_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+)/i;
