@@ -3116,7 +3116,7 @@ function categorise(t, account) {
   }
 
   // ── Type-based fallbacks ──────────────────────────────────────────────
-  if (t.type === 'FPI' || t.type === 'BGC' || t.type === 'DEP') return 'income';
+  if (t.type === 'FPI' || t.type === 'BGC' || t.type === 'DEP' || t.type === 'PAY') return 'income';
   if (t.type === 'DD')  return 'bills';
   if (t.type === 'SO')  return 'bills';
   if (t.type === 'DEB') return 'spending';
