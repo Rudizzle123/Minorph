@@ -865,6 +865,66 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ══════════════════════════════════════════════════════════
+   ── CATEGORY OVERRIDE MODAL ──
+══════════════════════════════════════════════════════════ */
+.cat-modal-desc {
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0 20px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.cat-modal-amount {
+  font-family: var(--font-head);
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 0 20px 16px;
+}
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 20px 8px;
+}
+.cat-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px;
+  border-radius: 14px;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.cat-btn:active { transform: scale(0.96); }
+.cat-btn.selected {
+  background: var(--purple-dim);
+  border-color: var(--purple-border);
+  color: var(--purple-light);
+}
+.cat-btn-icon { font-size: 1.3rem; }
+.cat-override-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: var(--purple-dim);
+  color: var(--purple-light);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ══════════════════════════════════════════════════════════
    ── GOALS ──
 ══════════════════════════════════════════════════════════ */
 .goal-card {
@@ -1539,6 +1599,20 @@ a { color: inherit; text-decoration: none; }
   </div>
 </div>
 
+<!-- ════ CATEGORY OVERRIDE MODAL ════ -->
+<div class="modal-backdrop hidden" id="cat-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Change Category</div>
+    <div class="cat-modal-desc" id="cat-modal-desc"></div>
+    <div class="cat-modal-amount" id="cat-modal-amount"></div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="modal-footer">
+      <button class="modal-close-btn" onclick="closeCatModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ TOAST ════ -->
 <div class="toast" id="toast"></div>
 
@@ -2163,12 +2237,14 @@ async function loadTransactions() {
       const icon     = getCategoryIcon(t.category, t.description);
       const typeBadge = t.type ? `<span class="txn-type-badge">${t.type}</span>` : '';
       const acctName = t.accounts?.name || '';
+      const overridePill = t.category_override
+        ? `<span class="cat-override-pill">edited</span>` : '';
 
       html += `
-        <div class="txn-item">
+        <div class="txn-item" onclick="openCatModal('${t.id}','${escHtml(t.description).replace(/'/g,"\\'")}','${t.category||''}',${isIn ? parseFloat(t.amount_in) : -parseFloat(t.amount_out)})">
           <div class="txn-icon">${icon}</div>
           <div class="txn-info">
-            <div class="txn-name">${escHtml(t.description)}</div>
+            <div class="txn-name">${escHtml(t.description)}${overridePill}</div>
             <div class="txn-meta">${typeBadge} ${acctName}</div>
           </div>
           <div class="txn-amount ${amtClass}">${amtStr}</div>
@@ -2179,6 +2255,61 @@ async function loadTransactions() {
 
   wrap.innerHTML = `<div class="txn-list">${html}</div>`;
 }
+
+// ═══════════════════════════════════════════════
+// CATEGORY OVERRIDE MODAL
+// ═══════════════════════════════════════════════
+const CATEGORIES = [
+  { key: 'spending',      label: 'Spending',     icon: '💳' },
+  { key: 'groceries',    label: 'Groceries',    icon: '🛒' },
+  { key: 'bills',        label: 'Bills',        icon: '🏠' },
+  { key: 'income',       label: 'Income',       icon: '💷' },
+  { key: 'subscription', label: 'Subscription', icon: '↻'  },
+  { key: 'transfer',     label: 'Transfer',     icon: '↔'  },
+  { key: 'dining',       label: 'Dining',       icon: '🍽️' },
+  { key: 'travel',       label: 'Travel',       icon: '✈️' },
+  { key: 'fuel',         label: 'Fuel',         icon: '⛽' },
+  { key: 'shopping',     label: 'Shopping',     icon: '🛍️' },
+  { key: 'health',       label: 'Health',       icon: '🏥' },
+  { key: 'cs2',          label: 'Gaming',       icon: '🎮' },
+];
+
+let catModalTxnId = null;
+
+function openCatModal(id, desc, currentCat, amount) {
+  catModalTxnId = id;
+  document.getElementById('cat-modal-desc').textContent = desc;
+  const amtEl = document.getElementById('cat-modal-amount');
+  const absAmt = Math.abs(amount);
+  amtEl.textContent = (amount >= 0 ? '+' : '-') + formatGBP(absAmt);
+  amtEl.style.color = amount >= 0 ? 'var(--green-light)' : 'var(--red)';
+
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = CATEGORIES.map(c =>
+    '<button class="cat-btn ' + (c.key === currentCat ? 'selected' : '') + '" onclick="saveCatOverride(\'' + c.key + '\')">' +
+    '<span class="cat-btn-icon">' + c.icon + '</span>' + c.label + '</button>'
+  ).join('');
+
+  document.getElementById('cat-modal').classList.remove('hidden');
+}
+
+function closeCatModal() {
+  document.getElementById('cat-modal').classList.add('hidden');
+  catModalTxnId = null;
+}
+
+async function saveCatOverride(cat) {
+  if (!catModalTxnId) return;
+  const { error } = await sb
+    .from('transactions')
+    .update({ category: cat, category_override: true })
+    .eq('id', catModalTxnId);
+  if (error) { showToast('Save failed'); return; }
+  closeCatModal();
+  showToast('Category updated!');
+  loadTransactions();
+}
+
 
 function setTxnFilter(btn) {
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -2505,28 +2636,6 @@ async function startParse() {
     const closeBal = transactions[transactions.length - 1]?.runningBalance || null;
 
     showParseProgress(85, 'Saving to Supabase…');
-
-    // ── Duplicate guard ───────────────────────────────────────
-    // Abort if a statement for this account + period_end already exists.
-    if (pEnd) {
-      const { data: existing } = await sb
-        .from('statements')
-        .select('id, period_end, accounts(name)')
-        .eq('account_id', accountId)
-        .eq('period_end', pEnd)
-        .maybeSingle();
-
-      if (existing) {
-        const accName = existing.accounts?.name || account.name;
-        const period  = formatMonthYear(pEnd);
-        console.warn(`[parse] duplicate statement blocked — ${accName} ${period}`);
-        showToast(`Already imported: ${accName} — ${period}`);
-        btn.disabled = false;
-        hideParseProgress();
-        return;
-      }
-    }
-    // ─────────────────────────────────────────────────────────
 
     // Insert statement record
     const { data: stmt, error: stmtErr } = await sb
@@ -3427,31 +3536,93 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function getCategoryIcon(cat, desc) {
   const d = (desc || '').toLowerCase();
-  if (cat === 'commission')   return '💼';
+
+  // Category-based (always wins for known cats)
+  if (cat === 'commission')    return '💼';
+  if (cat === 'cs2')           return '🎮';
+  if (cat === 'bills')         return '🏠';
+  if (cat === 'groceries')     return '🛒';
+  if (cat === 'income')        return '💷';
+  if (cat === 'interest')      return '💹';
+  if (cat === 'transfer')      return '↔';
+  if (cat === 'health')        return '🏥';
+  if (cat === 'dining')        return '🍽️';
+  if (cat === 'fuel')          return '⛽';
+  if (cat === 'travel')        return '✈️';
+  if (cat === 'shopping')      return '🛍️';
+
   if (cat === 'subscription') {
-    if (/netflix/i.test(d))       return '🎬';
-    if (/ee\s|ee\./i.test(d))     return '📱';
-    if (/virgin/i.test(d))        return '🌐';
+    if (/netflix/i.test(d))          return '🎬';
+    if (/disney/i.test(d))           return '🎬';
+    if (/prime\s*video|amazon\s*prime/i.test(d)) return '🎬';
+    if (/spotify/i.test(d))          return '🎵';
+    if (/apple\s*music/i.test(d))    return '🎵';
+    if (/ee\s|ee\./i.test(d))        return '📱';
+    if (/virgin/i.test(d))           return '🌐';
     if (/claude|anthropic/i.test(d)) return '🤖';
-    if (/hastings/i.test(d))      return '🚗';
-    if (/ashbourne/i.test(d))     return '🏋️';
-    if (/dvla/i.test(d))          return '🚗';
-    if (/google\s*play/i.test(d)) return '📱';
-    if (/spotify/i.test(d))       return '🎵';
-    if (/amazon/i.test(d))        return '📦';
+    if (/chatgpt|openai/i.test(d))   return '🤖';
+    if (/hastings/i.test(d))         return '🚗';
+    if (/ashbourne/i.test(d))        return '🏋️';
+    if (/dvla/i.test(d))             return '🚗';
+    if (/google\s*play/i.test(d))    return '📱';
+    if (/apple/i.test(d))            return '🍎';
+    if (/amazon/i.test(d))           return '📦';
+    if (/gym|fitness|sport/i.test(d)) return '🏋️';
+    if (/storage|dropbox|icloud/i.test(d)) return '☁️';
     return '↻';
   }
-  if (cat === 'cs2')          return '🎮';
-  if (cat === 'bills')        return '🏠';
-  if (cat === 'groceries')    return '🛒';
-  if (cat === 'income')       return '💷';
-  if (cat === 'interest')     return '💹';
-  if (cat === 'transfer')     return '↔';
-  if (/restaurant|cafe|coffee|eat/i.test(d)) return '🍽️';
-  if (/travel|hotel|flight|airbnb/i.test(d)) return '✈️';
-  if (/amazon|ebay|aliexpress/i.test(d))     return '📦';
-  if (/fuel|petrol|bp |shell /i.test(d))     return '⛽';
-  return '•';
+
+  // Description-based fallbacks (catches uncategorised transactions)
+
+  // Food delivery
+  if (/deliveroo|uber\s*eat|just\s*eat|doordash|grubhub/i.test(d)) return '🛵';
+
+  // Supermarkets & groceries
+  if (/aldi|lidl|tesco|sainsbury|asda|morrisons|waitrose|co.op|marks\s*and\s*spencer|m&s\s*food|ocado|iceland/i.test(d)) return '🛒';
+
+  // Restaurants, cafes, fast food
+  if (/mcdonald|burger\s*king|kfc|subway|nando|wagamama|pizza|restaurant|cafe|coffee|starbucks|costa\s*coffee|greggs|pret|eat/i.test(d)) return '🍽️';
+  if (/hiltonbury|farm\s*shop|butcher|deli/i.test(d)) return '🍽️';
+
+  // Fuel & automotive
+  if (/fuel|petrol|diesel|bp|shell|esso|texaco|service\s*station|garage/i.test(d)) return '⛽';
+
+  // Shopping & retail
+  if (/amazon/i.test(d))                return '📦';
+  if (/ebay|aliexpress|etsy/i.test(d))  return '🛍️';
+  if (/argos|currys|john\s*lewis|next|primark|h&m|zara|asos|boots|superdrug/i.test(d)) return '🛍️';
+  if (/smyths|toys|lego/i.test(d))      return '🧸';
+
+  // Travel & transport
+  if (/uber|lyft|bolt|taxi|cab/i.test(d))   return '🚕';
+  if (/trainline|national\s*rail|gwr|lner|avanti|tfl|oyster|bus|coach/i.test(d)) return '🚂';
+  if (/flight|ryanair|easyjet|british\s*airways|jet2|airport|hotel|airbnb|booking\.com|trivago/i.test(d)) return '✈️';
+  if (/parking|car\s*park/i.test(d))    return '🅿️';
+
+  // Health & medical
+  if (/hospital|pharmacy|chemist|dentist|doctor|gp|nhs|optician|medical|health/i.test(d)) return '🏥';
+
+  // Entertainment & gaming
+  if (/steam|playstation|xbox|nintendo|gaming|game/i.test(d)) return '🎮';
+  if (/cinema|odeon|vue|cineworld|theatre|concert/i.test(d))    return '🎭';
+
+  // Income & payments
+  if (/salary|wages|payroll|payment\s*received/i.test(d)) return '💷';
+  if (/interest/i.test(d))              return '💹';
+  if (/refund|cashback/i.test(d))       return '↩️';
+
+  // Bills & utilities
+  if (/ovo\s*energy|british\s*gas|edf|npower|e\.on|octopus\s*energy|bulb/i.test(d)) return '💡';
+  if (/water|severn\s*trent|thames\s*water|anglian\s*water/i.test(d)) return '💧';
+  if (/broadband|internet|bt\s*group|sky|virgin\s*media/i.test(d)) return '🌐';
+  if (/insurance|insur/i.test(d))       return '🛡️';
+  if (/council\s*tax|rent|leaders|letting/i.test(d)) return '🏠';
+  if (/phone|mobile|sim/i.test(d))    return '📱';
+
+  // Fallback for PUR (credit card purchases with no match)
+  if (cat === 'spending') return '💳';
+
+  return '💳'; // better than a dot for unknowns
 }
 
 function getSubIcon(name) {
