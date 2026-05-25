@@ -143,13 +143,23 @@ Settings → Git repository → reconnect GitHub, then re-deploy.
 
 ### To clear bad parse data from Supabase
 ```sql
-delete from transactions where account_id = (select id from accounts where name = 'Platinum Credit');
-delete from statements  where account_id = (select id from accounts where name = 'Platinum Credit');
-```
-To nuke everything:
-```sql
-delete from transactions;
-delete from statements;
+-- Delete most recent statement for a specific account (safe, doesn't touch others):
+DELETE FROM transactions
+WHERE statement_id = (
+  SELECT id FROM statements
+  WHERE account_id = (SELECT id FROM accounts WHERE name ILIKE '%account name%')
+  ORDER BY uploaded_at DESC LIMIT 1
+);
+DELETE FROM statements
+WHERE id = (
+  SELECT id FROM statements
+  WHERE account_id = (SELECT id FROM accounts WHERE name ILIKE '%account name%')
+  ORDER BY uploaded_at DESC LIMIT 1
+);
+
+-- Nuke everything:
+DELETE FROM transactions;
+DELETE FROM statements;
 ```
 
 ---
@@ -158,14 +168,14 @@ delete from statements;
 
 ### Parser routing (in `startParse`)
 ```
-Lloyds + account.type === 'credit'  → parseLloydsCredit
-Lloyds (all others)                 → parseLloyds
+Lloyds + account.type === 'credit'       → parseLloydsCredit
+Lloyds (all others)                      → parseLloyds
 Revolut + account.name includes 'saving' → parseRevolutSavings
-Revolut (all others)                → parseRevolutCurrent
-Amex / American Express             → parseAmex
+Revolut (all others)                     → parseRevolutCurrent
+Amex / American Express                  → parseAmex
 ```
 
-### Lloyds Current (token-walking parser)
+### Lloyds Current (parseLloyds) — ✅ verified
 PDF.js gives back text with mixed-up column labels and values. The parser:
 1. **Strips label noise** — removes `Date`, `Description`, `Type`, `Money In (£)`, `Money Out (£)`, `Balance (£)`, `blank.`, `(£)`
 2. **Tokenises** the cleaned text on whitespace
@@ -177,45 +187,39 @@ PDF.js gives back text with mixed-up column labels and values. The parser:
    - In/out direction is decided by TYPE (FPI/BGC/COR = in; rest = out)
 5. **TFR direction flip** — if description references own-account marker, swap in↔out
 - Date format: `07 Apr 26`
-- **Debugging:** logs token count, first 30 tokens, date positions found, parsed count, sample of 3, `skip row (no type)` per skipped row
 
-### Lloyds Credit (parseLloydsCredit) — ✅ working
-Lloyds Platinum Mastercard PDF layout differs entirely from current accounts:
-- No date column — rows begin with a **full month name** (OCTOBER, NOVEMBER…)
-- Format per row: `MONTHNAME DESCRIPTION AMOUNT [CR] CARD_REF [trailing_junk]`
-  - `CARD_REF` = 4-digit fixed number (last 4 of card, e.g. `1880`) — NOT a balance
+### Lloyds Credit (parseLloydsCredit) — ✅ verified
+Lloyds Platinum Mastercard PDF layout differs from current accounts:
+- Rows begin with a **full month name** (OCTOBER, NOVEMBER…)
+- Format: `MONTHNAME DESCRIPTION AMOUNT [CR] CARD_REF [trailing_junk]`
   - `CR` suffix = payment received (amountIn); no suffix = purchase (amountOut)
-  - Trailing junk tokens can appear after the card ref due to row fragmentation
-- No running balance per row
+  - Trailing junk tokens after card ref are stripped by finding the last money-shaped token
 
 **Strategy:**
-1. Tokenise full text
-2. Extract statement year (first `20XX` token)
-3. Find all full month-name token positions — these delimit rows
-4. For each row slice:
-   - Scan the **last 4 tokens** for `CR` anywhere → sets `isCR`
-   - Find the **last money-shaped token** (`\d+\.\d{2}`) and strip everything after it — this kills the card ref and any trailing junk in one move
-   - Last money token is the amount; everything before it is the description
-5. `CR` → type `PAY`, amountIn; no CR → type `PUR`, amountOut
+1. Tokenise full text; extract statement year from first `20XX` token
+2. Find all full month-name token positions — these delimit rows
+3. For each row: scan last 4 tokens for `CR`; strip everything after last `\d+\.\d{2}` token
+4. `CR` → type `PAY`, amountIn; no CR → type `PUR`, amountOut
 
-**Notes:**
-- `month positions found:` will be high (~110 for a single statement) because month words in header/footer prose are matched. Most produce empty or noise slices that get skipped by the "no amount" guard. Don't worry about the count.
-- Skipped rows are logged as `[parseLloydsCredit] skip row (no amount):` for visibility.
+**Notes:** `month positions found:` will be ~110 per statement — normal, over-matches produce empty slices that skip cleanly.
 
-### Revolut Current
+### Revolut Current (parseRevolutCurrent) — ✅ verified
 Columns: Date | Description | Money out | Money in | Balance
 - Date format: `15 Apr 2026`
-- Foreign-currency sub-rows (Fee/Rate/EUR) are skipped
-- Written, **untested on real data**
+- Foreign-currency sub-rows (Fee/Rate/EUR) skipped via `SKIP_RE`
+- Pending section detected and flagged
+- 3 amounts → out/in/balance; 2 amounts → heuristic by description; 1 amount → out
 
-### Revolut Savings
-Same columns as Revolut Current. Interest entries tagged as `interest` category.
-- Written, **untested on real data**
+### Revolut Savings (parseRevolutSavings) — ✅ verified
+Same columns as Revolut Current. Mostly Gross Interest (daily) + Deposit/Withdrawal entries.
+- Interest tagged `INT` type → categorised as `interest`
+- Deposit tagged `DEP`, withdrawal tagged `WDL`
 
-### Amex Gold
-- Statement closes 28th of each month — first one due 28 May 2026
-- Parser written speculatively — test on first statement and check console
-- If `[parseAmex] parsed 0 transactions` appears, raw text is dumped to console
+### Amex Gold (parseAmex) — ⚠️ speculative, untested
+- Statement closes 28th of month — first due 28 May 2026
+- Sections: "New Charges" / "Payments" / "Fees and Adjustments"
+- Date format: `01 Apr 26` (same as Lloyds, reuses `parseLloydsDate`)
+- If `[parseAmex] parsed 0 transactions`, raw text is dumped to console for debugging
 
 ---
 
@@ -225,7 +229,7 @@ Priority order (first match wins):
 
 1. Grocery reimbursement — TFR/FPO out of Rent & Bills ≤ £300 referencing Main Current → `groceries`
 2. Grocery reimbursement — TFR/FPI into Main Current ≤ £300 referencing Rent & Bills → `groceries`
-3. Internal transfer — TFR/FPO/FPI referencing own account numbers or R LANGFORD → `transfer`, excluded from spend
+3. Internal transfer — catches Revolut `To/From GBP Savings` by description first, then TFR/FPO/FPI referencing own account numbers or R LANGFORD → `transfer`, excluded from spend
 4. Commission — FPI from `INFINITY RENEWABLE` → `commission`, `is_commission = true`
 5. Revolut interest — type `INT` → `interest`
 6. Pattern rules (subscriptions, CS2, bills, groceries by merchant name)
@@ -244,21 +248,19 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 ## Known issues / watch points
 
 - **Amex parser** — speculative, untested until 28 May 2026 statement
-- **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside `DD/DEB/FPI/FPO/TFR/SO/CPT/COR/BGC/CHQ/ATM`, that row will be skipped
+- **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside the known set, that row will be skipped
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
-- **Lloyds Credit month over-matching** — ~110 month positions per statement is normal; over-matches produce empty slices that skip cleanly. Not a bug, just noisy logs.
+- **No duplicate statement guard** — re-uploading a PDF will silently insert duplicate transactions
 
 ---
 
 ## Things still to do
 
-- [ ] Upload Revolut Current and Savings statements
-- [ ] Upload and verify Amex Gold statement (28 May 2026)
+- [ ] Test Amex Gold parser on 28 May 2026 statement
 - [ ] Update Amex goal `current_amount` once Amex parser verified
-- [ ] Add duplicate statement guard (idempotent re-upload)
+- [ ] Add duplicate statement check (idempotent re-upload)
 - [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
 - [ ] Search/filter transactions by description
 - [ ] Export transactions as CSV
-- [ ] Multi-month commission chart (needs 2+ months of data)

@@ -1,4 +1,4 @@
-# Minorph — Project Amendments (Session 6)
+# Minorph — Project Amendments (Session 7)
 
 Update the project files before starting a new chat.
 
@@ -7,28 +7,12 @@ Update the project files before starting a new chat.
 ## Files to replace
 
 ### 1. `index.html` → replace entirely
-Download the latest from Claude's output. Key changes this session:
-- **`parseLloydsCredit` CR detection fixed** — payment rows (`PAYMENT RECEIVED – THANK YOU`) now correctly parse as `PAY` / `amountIn` and display green/positive.
-- All Lloyds Platinum Credit statements deleted from Supabase and re-uploaded with the fix in place. Verified: November 2025 payment shows `+£84.25` (green), other payments equally correct.
+Key changes this session:
+- **Revolut internal transfer detection** — `isInternalTransfer()` now catches `"To GBP Savings"` / `"From GBP Savings"` descriptions before the type guard runs (Revolut transactions have `type: null`, so the previous `TRANSFER_TYPES` check always missed them). Regex: `/^(TO|FROM)\s+GBP\s+(SAVINGS|CURRENT)/i`
+- **Dashboard 400 error fixed** — `loadDashboard` was using `.eq('accounts.user_id', ...)` on a join column which Supabase PostgREST rejects with a 400. Fixed to `.in('account_id', accountIds)` where `accountIds` is derived from the already-loaded `userAccounts` array. Limit bumped from 20 → 50.
 
 ### 2. `README.md` → replace entirely
-Updated `parseLloydsCredit` section to reflect resolved CR bug and the actual token-tail strategy.
-
----
-
-## What the bug was
-
-The `PAYMENT row toks:` debug log revealed the actual issue: rows had trailing junk numbers **after** the card ref, e.g.
-```
-["PAYMENT","RECEIVED","-","THANK","YOU","251.96","CR","1880","17"]
-```
-The previous strip logic assumed the row ended with the card ref, so it never saw `CR`. The fix:
-1. Scan the last 4 tokens for `CR` anywhere (not just last position)
-2. Strip everything after the last money-shaped token (kills card ref + any trailing junk)
-
-This is cause (b) from the original hypothesis — row fragmentation putting extra tokens at the tail — but the fragmentation was harmless once we stopped relying on positional strip.
-
-The `month positions found: 111` is still high, but the over-matched month positions produce empty/noise rows that are correctly skipped by the existing `skip row (no amount)` guard. Not worth fixing unless it causes a real failure.
+Updated parser status, known issues, and to-do list.
 
 ---
 
@@ -40,34 +24,35 @@ The `month positions found: 111` is still high, but the over-matched month posit
 - 6 accounts seeded, 2 goals seeded
 - Lloyds Main Current: Nov 2025 – Apr 2026 ✅
 - Rent & Bills: all months ✅
-- Lloyds Credit: all statements re-uploaded with fix ✅
-- Revolut Current + Savings: **not yet uploaded**
+- Lloyds Credit: all statements ✅
+- Revolut Current: May 2026 ✅
+- Revolut Savings: May 2026 ✅
 - Amex Gold: first statement arrives 28 May 2026
 
 ---
 
-## Parser status after this session
+## Parser status
 
 | Parser | Status |
 |---|---|
 | Lloyds Current | ✅ Verified — all months Nov 2025–Apr 2026 |
-| Lloyds Credit | ✅ Verified — payments now green/positive, purchases red/negative |
+| Lloyds Credit | ✅ Verified — payments green, purchases red |
 | Rent & Bills | ✅ Verified |
-| Revolut Current | Written, untested |
-| Revolut Savings | Written, untested |
+| Revolut Current | ✅ Verified — 20 transactions, internal transfers excluded |
+| Revolut Savings | ✅ Verified — 46 transactions, interest tagged correctly |
 | Amex Gold | Speculative — first statement arrives 28 May 2026 |
 
 ---
 
 ## Things to do next session
 
-- [ ] Upload Revolut Current statements and verify parser
-- [ ] Upload Revolut Savings statements and verify parser
 - [ ] Test Amex Gold parser on 28 May 2026 statement
 - [ ] Add duplicate statement check (idempotent re-upload)
 - [ ] Update Amex goal `current_amount` once Amex parser is verified
 - [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
+- [ ] Search/filter transactions by description
+- [ ] Export transactions as CSV
 
 ---
 

@@ -2506,6 +2506,28 @@ async function startParse() {
 
     showParseProgress(85, 'Saving to Supabase…');
 
+    // ── Duplicate guard ───────────────────────────────────────
+    // Abort if a statement for this account + period_end already exists.
+    if (pEnd) {
+      const { data: existing } = await sb
+        .from('statements')
+        .select('id, period_end, accounts(name)')
+        .eq('account_id', accountId)
+        .eq('period_end', pEnd)
+        .maybeSingle();
+
+      if (existing) {
+        const accName = existing.accounts?.name || account.name;
+        const period  = formatMonthYear(pEnd);
+        console.warn(`[parse] duplicate statement blocked — ${accName} ${period}`);
+        showToast(`Already imported: ${accName} — ${period}`);
+        btn.disabled = false;
+        hideParseProgress();
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────
+
     // Insert statement record
     const { data: stmt, error: stmtErr } = await sb
       .from('statements')
