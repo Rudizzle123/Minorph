@@ -2755,16 +2755,19 @@ async function loadBills() {
     const dueLabel = b.due_day ? 'Due ' + b.due_day + (b.due_day === 1 ? 'st' : b.due_day === 2 ? 'nd' : b.due_day === 3 ? 'rd' : 'th') + ' of month' : (b.cycle || 'monthly');
     const icon = billIcon(b.name);
 
+    const cycleTag = b.cycle !== 'monthly'
+      ? `<span style="font-size:0.6rem;color:var(--muted)"> /${b.cycle || 'mo'}</span>`
+      : '';
     html += `
       <div class="bill-item">
-        <div class="txn-icon">\${icon}</div>
+        <div class="txn-icon">${icon}</div>
         <div class="bill-info">
-          <div class="bill-name">\${escHtml(b.name)}</div>
-          <div class="bill-cycle">\${dueLabel}</div>
+          <div class="bill-name">${escHtml(b.name)}</div>
+          <div class="bill-cycle">${dueLabel}</div>
         </div>
         <div class="bill-right">
-          <div class="bill-amount">\${formatGBP(b.amount)}\${b.cycle !== 'monthly' ? '<span style="font-size:0.6rem;color:var(--muted)"> /\${b.cycle || \'mo\'}</span>' : ''}</div>
-          <button class="bill-edit-btn" onclick="openBillModal('\${b.id}')">✎</button>
+          <div class="bill-amount">${formatGBP(b.amount)}${cycleTag}</div>
+          <button class="bill-edit-btn" onclick="openBillModal('${b.id}')">✎</button>
         </div>
       </div>`;
   });
@@ -2788,14 +2791,14 @@ function openBillModal(id) {
   if (id) {
     titleEl.textContent = 'Edit Bill';
     deleteBtn.classList.remove('hidden');
-    // Pre-fill from DOM (avoid extra DB call)
-    const item = document.querySelector(`.bill-edit-btn[onclick*="\${id}"]`)?.closest('.bill-item');
-    if (item) {
-      document.getElementById('bill-name-input').value = item.querySelector('.bill-name').textContent.trim();
-      // amount — strip £ and commas
-      const rawAmt = item.querySelector('.bill-amount').textContent.replace(/[^0-9.]/g,'');
-      document.getElementById('bill-amount-input').value = rawAmt;
-    }
+    // Fetch from Supabase to pre-fill accurately
+    sb.from('bills').select('*').eq('id', id).single().then(({ data: b }) => {
+      if (!b) return;
+      document.getElementById('bill-name-input').value   = b.name || '';
+      document.getElementById('bill-amount-input').value = b.amount || '';
+      document.getElementById('bill-due-input').value    = b.due_day || '';
+      document.getElementById('bill-cycle-input').value  = b.cycle || 'monthly';
+    });
   } else {
     titleEl.textContent = 'Add Bill';
     deleteBtn.classList.add('hidden');
