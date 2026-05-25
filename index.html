@@ -672,6 +672,138 @@ a { color: inherit; text-decoration: none; }
 /* ══════════════════════════════════════════════════════════
    ── SUBSCRIPTIONS ──
 ══════════════════════════════════════════════════════════ */
+
+.seg-toggle {
+  display: flex;
+  margin: 0 20px 16px;
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+.seg-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.seg-btn.active {
+  background: var(--purple-dim);
+  color: var(--purple-light);
+  border-color: var(--purple-border);
+}
+.bills-list { padding: 0 20px; }
+.bill-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bill-item:last-child { border-bottom: none; }
+.bill-info { flex: 1; }
+.bill-name { font-size: 0.85rem; font-weight: 500; margin-bottom: 2px; }
+.bill-cycle { font-size: 0.66rem; color: var(--muted); }
+.bill-right { display: flex; align-items: center; gap: 10px; }
+.bill-amount {
+  font-family: var(--font-head);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--red);
+}
+.bill-edit-btn {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--muted);
+  font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.bill-edit-btn:active { opacity: 0.7; }
+.add-btn {
+  width: calc(100% - 40px);
+  margin: 14px 20px 0;
+  padding: 13px;
+  border-radius: 14px;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.add-btn:hover { border-color: var(--purple-border); color: var(--purple-light); }
+.modal-field { padding: 0 20px 12px; }
+.modal-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.modal-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.modal-input:focus { border-color: var(--purple); }
+.modal-input option { background: var(--surface2); }
+.modal-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 20px 12px;
+}
+.modal-save-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--purple), #6b3fa0);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  margin-bottom: 10px;
+  letter-spacing: 0.03em;
+  font-family: var(--font-body);
+}
+.modal-delete-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--red-dim);
+  border: 1px solid rgba(255,107,107,0.22);
+  color: var(--red);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
 .approval-banner {
   margin: 0 20px 12px;
   border-radius: 16px;
@@ -1448,18 +1580,40 @@ a { color: inherit; text-decoration: none; }
       </div>
     </div>
 
-    <div class="page-title">Subscriptions</div>
-    <div class="page-sub">Auto-detected recurring charges</div>
+    <div class="page-title">Recurring</div>
+    <div class="page-sub">Subscriptions &amp; bills</div>
 
-    <div id="subs-approval-banner" class="hidden"></div>
-    <div id="subs-grid-wrap">
-      <div class="loading-wrap"><div class="spinner"></div><span>Detecting subscriptions…</span></div>
+    <div class="seg-toggle">
+      <button class="seg-btn active" onclick="switchSubsTab('subs', this)">Subscriptions</button>
+      <button class="seg-btn" onclick="switchSubsTab('bills', this)">Bills</button>
     </div>
-    <div id="subs-total-bar" class="hidden">
-      <div class="sub-total-bar">
-        <div class="sub-total-label">Monthly total</div>
-        <div class="sub-total-val" id="subs-total-val">£0.00</div>
+
+    <!-- SUBSCRIPTIONS PANEL -->
+    <div id="subs-panel">
+      <div id="subs-approval-banner" class="hidden"></div>
+      <div id="subs-grid-wrap">
+        <div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>
       </div>
+      <div id="subs-total-bar" class="hidden">
+        <div class="sub-total-bar">
+          <div class="sub-total-label">Monthly total</div>
+          <div class="sub-total-val" id="subs-total-val">£0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BILLS PANEL -->
+    <div id="bills-panel" style="display:none">
+      <div id="bills-list-wrap">
+        <div class="loading-wrap"><div class="spinner"></div><span>Loading bills…</span></div>
+      </div>
+      <div id="bills-total-bar" class="hidden">
+        <div class="sub-total-bar">
+          <div class="sub-total-label">Monthly total</div>
+          <div class="sub-total-val" id="bills-total-val">£0.00</div>
+        </div>
+      </div>
+      <button class="add-btn" onclick="openBillModal(null)">＋&nbsp;Add bill</button>
     </div>
   </div>
 
@@ -1609,6 +1763,43 @@ a { color: inherit; text-decoration: none; }
     <div class="cat-grid" id="cat-grid"></div>
     <div class="modal-footer">
       <button class="modal-close-btn" onclick="closeCatModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ BILL EDIT / ADD MODAL ════ -->
+<div class="modal-backdrop hidden" id="bill-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title" id="bill-modal-title">Add Bill</div>
+    <div class="modal-sub">Enter the details below</div>
+    <div class="modal-field">
+      <div class="modal-label">Name</div>
+      <input class="modal-input" id="bill-name-input" type="text" placeholder="e.g. Council Tax" maxlength="60">
+    </div>
+    <div class="modal-input-row">
+      <div>
+        <div class="modal-label">Amount (£)</div>
+        <input class="modal-input" id="bill-amount-input" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div>
+        <div class="modal-label">Due day (optional)</div>
+        <input class="modal-input" id="bill-due-input" type="number" min="1" max="31" placeholder="1–31">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Cycle</div>
+      <select class="modal-input" id="bill-cycle-input">
+        <option value="monthly">Monthly</option>
+        <option value="annual">Annual</option>
+        <option value="quarterly">Quarterly</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-save-btn" onclick="saveBill()">Save bill</button>
+      <button class="modal-delete-btn hidden" id="bill-delete-btn" onclick="deleteBill()" style="margin-bottom:10px">Delete bill</button>
+      <button class="modal-close-btn" onclick="closeBillModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1803,7 +1994,7 @@ function switchScreen(name, btn) {
   // Lazy-load screen data
   if (name === 'dashboard')     loadDashboard();
   if (name === 'transactions')  loadTransactions();
-  if (name === 'subscriptions') loadSubscriptions();
+  if (name === 'subscriptions') { loadSubscriptions(); if (currentSubsTab === 'bills') loadBills(); }
   if (name === 'goals')         loadGoals();
   if (name === 'upload')        loadUploadHistory();
 }
@@ -2377,11 +2568,12 @@ async function loadSubscriptions() {
     total += parseFloat(s.amount) || 0;
     const icon = s.icon || getSubIcon(s.name);
     gridHtml += `
-      <div class="sub-card">
+      <div class="sub-card" onclick="openEditSubModal('${s.id}','${escHtml(s.name).replace(/'/g,'\\\'')}',${s.amount},'${s.cycle||'month'}')">
         <div class="sub-icon">${icon}</div>
         <div class="sub-name">${escHtml(s.name)}</div>
         <div class="sub-amount">${formatGBP(s.amount)}</div>
         <div class="sub-cycle">/ ${s.cycle || 'month'}</div>
+        <div style="font-size:0.6rem;color:var(--muted);margin-top:4px">Tap to edit</div>
       </div>`;
   });
   gridHtml += '</div>';
@@ -2442,6 +2634,217 @@ async function dismissSub(id) {
   await sb.from('subscriptions').delete().eq('id', id);
   document.getElementById(`review-item-${id}`)?.remove();
   showToast('Dismissed');
+}
+
+// ═══════════════════════════════════════════════
+// BILLS
+// ═══════════════════════════════════════════════
+let currentSubsTab = 'subs';
+let editingBillId   = null;
+
+
+// Edit existing subscription amount
+let editingSubId = null;
+
+function openEditSubModal(id, name, amount, cycle) {
+  editingSubId = id;
+  // Reuse bill modal for sub editing — just retitle it
+  document.getElementById('bill-modal-title').textContent = 'Edit Subscription';
+  document.getElementById('bill-name-input').value   = name;
+  document.getElementById('bill-amount-input').value = amount;
+  document.getElementById('bill-due-input').value    = '';
+  document.getElementById('bill-cycle-input').value  = cycle === 'month' ? 'monthly' : (cycle || 'monthly');
+  document.getElementById('bill-delete-btn').classList.remove('hidden');
+  document.getElementById('bill-modal').classList.remove('hidden');
+
+  // Override save/delete to operate on subscriptions table
+  document.querySelector('#bill-modal .modal-save-btn').onclick = saveSubEdit;
+  document.querySelector('#bill-modal .modal-delete-btn').onclick = deleteSubEntry;
+}
+
+async function saveSubEdit() {
+  const amount = parseFloat(document.getElementById('bill-amount-input').value);
+  const cycle  = document.getElementById('bill-cycle-input').value;
+  if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount'); return; }
+  const { error } = await sb.from('subscriptions')
+    .update({ amount, cycle })
+    .eq('id', editingSubId);
+  if (error) { showToast('Save failed'); return; }
+  closeBillModal();
+  editingSubId = null;
+  // Restore save button to bill handler
+  document.querySelector('#bill-modal .modal-save-btn').onclick = saveBill;
+  document.querySelector('#bill-modal .modal-delete-btn').onclick = deleteBill;
+  showToast('Subscription updated \u2713');
+  loadSubscriptions();
+}
+
+async function deleteSubEntry() {
+  if (!editingSubId) return;
+  await sb.from('subscriptions').delete().eq('id', editingSubId);
+  closeBillModal();
+  editingSubId = null;
+  document.querySelector('#bill-modal .modal-save-btn').onclick = saveBill;
+  document.querySelector('#bill-modal .modal-delete-btn').onclick = deleteBill;
+  showToast('Subscription removed');
+  loadSubscriptions();
+}
+
+function switchSubsTab(tab, btn) {
+  currentSubsTab = tab;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('subs-panel').style.display  = tab === 'subs'  ? '' : 'none';
+  document.getElementById('bills-panel').style.display = tab === 'bills' ? '' : 'none';
+  if (tab === 'bills' && document.getElementById('bills-list-wrap').querySelector('.spinner')) {
+    loadBills();
+  }
+}
+
+async function loadBills() {
+  const wrap = document.getElementById('bills-list-wrap');
+  const totalBar = document.getElementById('bills-total-bar');
+  wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>';
+  totalBar.classList.add('hidden');
+
+  const { data, error } = await sb
+    .from('bills')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('amount', { ascending: false });
+
+  if (error) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-sub" style="color:var(--red)">' + error.message + '</div></div>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🏠</div>
+        <div class="empty-title">No bills tracked</div>
+        <div class="empty-sub">Add your regular bills — rent, energy, council tax, broadband, and anything else that hits monthly.</div>
+      </div>`;
+    return;
+  }
+
+  const BILL_ICONS = {
+    rent: '🏠', council: '🏛️', energy: '💡', water: '💧',
+    broadband: '🌐', internet: '🌐', phone: '📱', mobile: '📱',
+    insurance: '🛡️', gas: '💡', electric: '💡', tv: '📺',
+    gym: '🏋️', sky: '📺', virgin: '🌐', bt: '🌐',
+    leaders: '🏠', ovo: '💡',
+  };
+  function billIcon(name) {
+    const n = (name || '').toLowerCase();
+    for (const [k, v] of Object.entries(BILL_ICONS)) {
+      if (n.includes(k)) return v;
+    }
+    return '🧾';
+  }
+
+  let total = 0;
+  let html = '<div class="bills-list">';
+  data.forEach(b => {
+    const monthlyAmt = b.cycle === 'annual'    ? (parseFloat(b.amount) / 12)
+                     : b.cycle === 'quarterly' ? (parseFloat(b.amount) / 3)
+                     : b.cycle === 'weekly'    ? (parseFloat(b.amount) * 4.33)
+                     : parseFloat(b.amount);
+    total += monthlyAmt;
+
+    const dueLabel = b.due_day ? 'Due ' + b.due_day + (b.due_day === 1 ? 'st' : b.due_day === 2 ? 'nd' : b.due_day === 3 ? 'rd' : 'th') + ' of month' : (b.cycle || 'monthly');
+    const icon = billIcon(b.name);
+
+    html += `
+      <div class="bill-item">
+        <div class="txn-icon">\${icon}</div>
+        <div class="bill-info">
+          <div class="bill-name">\${escHtml(b.name)}</div>
+          <div class="bill-cycle">\${dueLabel}</div>
+        </div>
+        <div class="bill-right">
+          <div class="bill-amount">\${formatGBP(b.amount)}\${b.cycle !== 'monthly' ? '<span style="font-size:0.6rem;color:var(--muted)"> /\${b.cycle || \'mo\'}</span>' : ''}</div>
+          <button class="bill-edit-btn" onclick="openBillModal('\${b.id}')">✎</button>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+
+  wrap.innerHTML = html;
+  document.getElementById('bills-total-val').textContent = formatGBP(total);
+  totalBar.classList.remove('hidden');
+}
+
+function openBillModal(id) {
+  editingBillId = id;
+  const titleEl  = document.getElementById('bill-modal-title');
+  const deleteBtn = document.getElementById('bill-delete-btn');
+
+  document.getElementById('bill-name-input').value   = '';
+  document.getElementById('bill-amount-input').value = '';
+  document.getElementById('bill-due-input').value    = '';
+  document.getElementById('bill-cycle-input').value  = 'monthly';
+
+  if (id) {
+    titleEl.textContent = 'Edit Bill';
+    deleteBtn.classList.remove('hidden');
+    // Pre-fill from DOM (avoid extra DB call)
+    const item = document.querySelector(`.bill-edit-btn[onclick*="\${id}"]`)?.closest('.bill-item');
+    if (item) {
+      document.getElementById('bill-name-input').value = item.querySelector('.bill-name').textContent.trim();
+      // amount — strip £ and commas
+      const rawAmt = item.querySelector('.bill-amount').textContent.replace(/[^0-9.]/g,'');
+      document.getElementById('bill-amount-input').value = rawAmt;
+    }
+  } else {
+    titleEl.textContent = 'Add Bill';
+    deleteBtn.classList.add('hidden');
+  }
+
+  document.getElementById('bill-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('bill-name-input').focus(), 200);
+}
+
+function closeBillModal() {
+  document.getElementById('bill-modal').classList.add('hidden');
+  editingBillId = null;
+}
+
+async function saveBill() {
+  const name    = document.getElementById('bill-name-input').value.trim();
+  const amount  = parseFloat(document.getElementById('bill-amount-input').value);
+  const due_day = parseInt(document.getElementById('bill-due-input').value) || null;
+  const cycle   = document.getElementById('bill-cycle-input').value;
+
+  if (!name)        { showToast('Enter a name'); return; }
+  if (isNaN(amount) || amount <= 0) { showToast('Enter a valid amount'); return; }
+
+  const icon = null; // auto-derived in loadBills
+
+  if (editingBillId) {
+    const { error } = await sb.from('bills')
+      .update({ name, amount, due_day, cycle })
+      .eq('id', editingBillId);
+    if (error) { showToast('Save failed'); return; }
+    showToast('Bill updated \u2713');
+  } else {
+    const { error } = await sb.from('bills')
+      .insert({ user_id: currentUser.id, name, amount, due_day, cycle });
+    if (error) { showToast('Save failed'); return; }
+    showToast('Bill added \u2713');
+  }
+
+  closeBillModal();
+  loadBills();
+}
+
+async function deleteBill() {
+  if (!editingBillId) return;
+  const { error } = await sb.from('bills').delete().eq('id', editingBillId);
+  if (error) { showToast('Delete failed'); return; }
+  showToast('Bill removed');
+  closeBillModal();
+  loadBills();
 }
 
 // ═══════════════════════════════════════════════
