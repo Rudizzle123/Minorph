@@ -2793,19 +2793,26 @@ function parseLloydsCredit(text) {
       console.log('[parseLloydsCredit] PAYMENT row toks:', JSON.stringify(rowToks));
     }
 
-    // Strip trailing noise: card ref (4-digit) and CR can appear in either order
-    // e.g. "251.96 CR 1880" or "251.96 1880 CR" — strip both
+    // Strip trailing noise. Layouts seen:
+    //   "<amount> CR 1880"             (clean)
+    //   "<amount> CR 1880 17"          (trailing junk number from next-row fragment)
+    //   "<amount> 1880 CR"             (other order)
+    //   "<amount> 1880"                (debit, no CR)
+    // Strategy: scan the last few tokens for "CR" anywhere, then strip everything
+    // after the amount token (which is the last money-shaped token).
     let toks = [...rowToks];
     let isCR = false;
-    // Pass 1: strip trailing card ref
-    if (toks.length > 0 && isCardRef(toks[toks.length - 1])) toks.pop();
-    // Pass 2: now check for CR
-    if (toks.length > 0 && toks[toks.length - 1].toUpperCase() === 'CR') {
-      isCR = true;
-      toks.pop();
+    // Look for CR in the last 4 tokens (post-amount tail)
+    const tailStart = Math.max(0, toks.length - 4);
+    for (let i = tailStart; i < toks.length; i++) {
+      if (toks[i].toUpperCase() === 'CR') { isCR = true; break; }
     }
-    // Pass 3: card ref might follow CR (other order) — strip again if needed
-    if (toks.length > 0 && isCardRef(toks[toks.length - 1])) toks.pop();
+    // Strip everything after the last money-shaped token
+    let lastMoneyIdx = -1;
+    for (let i = toks.length - 1; i >= 0; i--) {
+      if (isMoney(toks[i])) { lastMoneyIdx = i; break; }
+    }
+    if (lastMoneyIdx !== -1) toks = toks.slice(0, lastMoneyIdx + 1);
 
     // Skip rows that are just noise (statement summary, "New balance", etc.)
     const rowText = toks.join(' ').toUpperCase();
