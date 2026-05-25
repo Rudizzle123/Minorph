@@ -1775,12 +1775,13 @@ function populateAccountSelects() {
 // ═══════════════════════════════════════════════
 async function loadDashboard() {
   // Get latest statement period
-  const { data: stmts } = await sb
+  const accountIds = userAccounts.map(a => a.id);
+  const { data: stmts } = accountIds.length > 0 ? await sb
     .from('statements')
     .select('period_end, closing_balance, account_id')
-    .eq('accounts.user_id', currentUser.id)
+    .in('account_id', accountIds)
     .order('period_end', { ascending: false })
-    .limit(20);
+    .limit(50) : { data: [] };
 
   // Get most recent statement per account
   const latestByAccount = {};
@@ -3205,10 +3206,15 @@ function isGroceryReimbursement(t, account) {
 }
 
 function isInternalTransfer(t) {
+  const desc = (t.description || '').toUpperCase();
+
+  // Revolut — own-account transfers use "To GBP Savings" / "From GBP Savings"
+  // These have type=null so we catch them by description before the type guard.
+  if (/^(TO|FROM)\s+GBP\s+(SAVINGS|CURRENT)/i.test(t.description || '')) return true;
+
   // Type must be a transfer type — DEB/DD payments are never internal
   const TRANSFER_TYPES = ['TFR', 'FPO', 'FPI'];
   if (!TRANSFER_TYPES.includes(t.type)) return false;
-  const desc = (t.description || '').toUpperCase();
   return OWN_ACCOUNT_MARKERS.some(m => desc.includes(m.toUpperCase()));
 }
 
