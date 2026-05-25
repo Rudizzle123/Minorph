@@ -1,4 +1,4 @@
-# Minorph — Project Amendments (Session 5)
+# Minorph — Project Amendments (Session 6)
 
 Update the project files before starting a new chat.
 
@@ -8,18 +8,27 @@ Update the project files before starting a new chat.
 
 ### 1. `index.html` → replace entirely
 Download the latest from Claude's output. Key changes this session:
-- All remaining **Lloyds Main Current** statements uploaded (Nov 2025 – Apr 2026) — all verified clean
-- All **Rent & Bills** statements uploaded — all verified clean (12–16 transactions per month)
-- **`parseLloydsCredit`** written and added — new dedicated parser for Lloyds Platinum Mastercard statements
-  - Routed via `account.type === 'credit'` check in `startParse`
-  - Token-walking strategy using full month names (OCTOBER, NOVEMBER…) as row delimiters
-  - Correctly parses 50 transactions from a single statement
-  - **KNOWN BUG: CR detection not working** — payment rows (`PAYMENT RECEIVED – THANK YOU`) are being stored as `PUR`/`amountOut` instead of `PAY`/`amountIn`. See below.
-- `categorise()` updated: `PAY` type now returns `'income'` (previously missing from fallbacks)
-- Debug logs added to `parseLloydsCredit`: `PAYMENT row toks:` log will fire on next upload to expose the raw token sequence
+- **`parseLloydsCredit` CR detection fixed** — payment rows (`PAYMENT RECEIVED – THANK YOU`) now correctly parse as `PAY` / `amountIn` and display green/positive.
+- All Lloyds Platinum Credit statements deleted from Supabase and re-uploaded with the fix in place. Verified: November 2025 payment shows `+£84.25` (green), other payments equally correct.
 
 ### 2. `README.md` → replace entirely
-Updated parser notes to reflect new credit parser and known bug.
+Updated `parseLloydsCredit` section to reflect resolved CR bug and the actual token-tail strategy.
+
+---
+
+## What the bug was
+
+The `PAYMENT row toks:` debug log revealed the actual issue: rows had trailing junk numbers **after** the card ref, e.g.
+```
+["PAYMENT","RECEIVED","-","THANK","YOU","251.96","CR","1880","17"]
+```
+The previous strip logic assumed the row ended with the card ref, so it never saw `CR`. The fix:
+1. Scan the last 4 tokens for `CR` anywhere (not just last position)
+2. Strip everything after the last money-shaped token (kills card ref + any trailing junk)
+
+This is cause (b) from the original hypothesis — row fragmentation putting extra tokens at the tail — but the fragmentation was harmless once we stopped relying on positional strip.
+
+The `month positions found: 111` is still high, but the over-matched month positions produce empty/noise rows that are correctly skipped by the existing `skip row (no amount)` guard. Not worth fixing unless it causes a real failure.
 
 ---
 
@@ -31,8 +40,9 @@ Updated parser notes to reflect new credit parser and known bug.
 - 6 accounts seeded, 2 goals seeded
 - Lloyds Main Current: Nov 2025 – Apr 2026 ✅
 - Rent & Bills: all months ✅
-- Lloyds Credit: uploaded but **payment direction wrong** — needs fix + re-upload
-- Revolut Current + Savings: not yet uploaded
+- Lloyds Credit: all statements re-uploaded with fix ✅
+- Revolut Current + Savings: **not yet uploaded**
+- Amex Gold: first statement arrives 28 May 2026
 
 ---
 
@@ -40,46 +50,24 @@ Updated parser notes to reflect new credit parser and known bug.
 
 | Parser | Status |
 |---|---|
-| Lloyds Current | ✅ Verified — all months Nov 2025–Apr 2026, correct amounts |
-| Lloyds Credit | ⚠️ Parsing 50 transactions correctly but CR (payment) detection broken — all rows stored as PUR/amountOut |
-| Rent & Bills | ✅ Verified — all months clean |
+| Lloyds Current | ✅ Verified — all months Nov 2025–Apr 2026 |
+| Lloyds Credit | ✅ Verified — payments now green/positive, purchases red/negative |
+| Rent & Bills | ✅ Verified |
 | Revolut Current | Written, untested |
 | Revolut Savings | Written, untested |
 | Amex Gold | Speculative — first statement arrives 28 May 2026 |
 
 ---
 
-## The CR bug — what's known
-
-**Symptom:** `PAYMENT RECEIVED – THANK YOU` rows appear as `PUR` type with `amountOut` set, not `PAY`/`amountIn`. They display red and negative instead of green and positive.
-
-**What the parser does:** After finding a row's token slice (between two month-name positions), it:
-1. Strips trailing 4-digit card ref (e.g. `1880`)
-2. Checks if last remaining token is `CR` → sets `isCR = true`
-3. Strips a second card ref if present
-
-**What the console shows:**
-- `month positions found: 111` — far too many for one statement. The word `MAY` in the header (`35 | May | 2026`) and other incidental month words in prose are being picked up as row delimiters, fragmenting real rows.
-- No `[parseLloydsCredit] CR row:` logs ever fire — meaning `isCR` never becomes true.
-- The `PAYMENT row toks:` debug log (added last) hasn't been tested yet — **this is the next step**.
-
-**Most likely cause:** The payment row is being split by a spurious month token mid-row (e.g. the word `NOVEMBER` appearing inside the payment description or in adjacent prose), so the `CR` token ends up in a different fragment than the amount, and neither fragment has both. Or `CR` is being tokenised differently (e.g. attached to the amount as `251.96CR` with no space).
-
-**Next step for Opus:**
-1. Push the current `index.html` (debug log already added), re-upload one credit statement, and grab the `[parseLloydsCredit] PAYMENT row toks:` console output.
-2. That will show exactly what tokens the payment row contains and where `CR` sits relative to the amount.
-3. Fix accordingly — likely either: (a) `CR` is attached to the amount token with no space, requiring the isMoney regex to handle `\d+\.\d{2}CR`, or (b) the row is being fragmented by a spurious month token inside the prose.
-
----
-
 ## Things to do next session
 
-- [ ] Fix `parseLloydsCredit` CR detection (see bug notes above)
-- [ ] Delete Lloyds Credit data from Supabase and re-upload all statements once fixed
-- [ ] Upload Revolut Current and Savings statements
+- [ ] Upload Revolut Current statements and verify parser
+- [ ] Upload Revolut Savings statements and verify parser
 - [ ] Test Amex Gold parser on 28 May 2026 statement
-- [ ] Add duplicate statement check (idempotent re-upload) — agreed this is worth adding
+- [ ] Add duplicate statement check (idempotent re-upload)
 - [ ] Update Amex goal `current_amount` once Amex parser is verified
+- [ ] Manual category override (tap transaction → change category)
+- [ ] Grocery spend tracker — £X of £300 budget used this month
 
 ---
 

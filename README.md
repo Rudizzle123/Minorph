@@ -179,29 +179,28 @@ PDF.js gives back text with mixed-up column labels and values. The parser:
 - Date format: `07 Apr 26`
 - **Debugging:** logs token count, first 30 tokens, date positions found, parsed count, sample of 3, `skip row (no type)` per skipped row
 
-### Lloyds Credit (parseLloydsCredit) — ⚠️ CR BUG UNRESOLVED
+### Lloyds Credit (parseLloydsCredit) — ✅ working
 Lloyds Platinum Mastercard PDF layout differs entirely from current accounts:
 - No date column — rows begin with a **full month name** (OCTOBER, NOVEMBER…)
-- Format per row: `MONTHNAME DESCRIPTION AMOUNT [CR] CARD_REF`
+- Format per row: `MONTHNAME DESCRIPTION AMOUNT [CR] CARD_REF [trailing_junk]`
   - `CARD_REF` = 4-digit fixed number (last 4 of card, e.g. `1880`) — NOT a balance
   - `CR` suffix = payment received (amountIn); no suffix = purchase (amountOut)
+  - Trailing junk tokens can appear after the card ref due to row fragmentation
 - No running balance per row
 
-**Current strategy:**
+**Strategy:**
 1. Tokenise full text
 2. Extract statement year (first `20XX` token)
 3. Find all full month-name token positions — these delimit rows
-4. For each row: strip trailing card ref, detect `CR`, find last `\d+\.\d{2}` as amount
+4. For each row slice:
+   - Scan the **last 4 tokens** for `CR` anywhere → sets `isCR`
+   - Find the **last money-shaped token** (`\d+\.\d{2}`) and strip everything after it — this kills the card ref and any trailing junk in one move
+   - Last money token is the amount; everything before it is the description
 5. `CR` → type `PAY`, amountIn; no CR → type `PUR`, amountOut
 
-**Known bug:** `isCR` never fires. Payment rows are stored as `PUR`/`amountOut`.
-- Root cause not yet confirmed. Two candidates:
-  - (a) `CR` is joined to the amount with no space (e.g. `251.96CR`) so it's not a standalone token
-  - (b) The row is fragmented by a spurious month token inside the payment description prose, putting `CR` in a different row slice than the amount
-- `month positions found: 111` for a single statement confirms heavy over-matching — month words in header/footer prose are being treated as row starters
-- Debug log `[parseLloydsCredit] PAYMENT row toks:` has been added to the current `index.html` — **this log needs to be captured to diagnose the bug**
-
-**To fix:** Push current `index.html`, re-upload one credit statement, grab the `PAYMENT row toks:` console output, then fix based on what the tokens actually look like.
+**Notes:**
+- `month positions found:` will be high (~110 for a single statement) because month words in header/footer prose are matched. Most produce empty or noise slices that get skipped by the "no amount" guard. Don't worry about the count.
+- Skipped rows are logged as `[parseLloydsCredit] skip row (no amount):` for visibility.
 
 ### Revolut Current
 Columns: Date | Description | Money out | Money in | Balance
@@ -244,23 +243,20 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 
 ## Known issues / watch points
 
-- **Lloyds Credit CR bug** — payment rows stored as PUR/amountOut. Debug log added, needs one more upload to diagnose. See parser notes above.
-- **Lloyds Credit month over-matching** — 111 month positions found in a single statement. Month words in header/footer prose (e.g. `May` in `35 | May | 2026`) are triggering false row starts. The real fix may need a stricter row-start heuristic (e.g. require the month token to be followed by a money-like pattern within N tokens).
 - **Amex parser** — speculative, untested until 28 May 2026 statement
 - **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside `DD/DEB/FPI/FPO/TFR/SO/CPT/COR/BGC/CHQ/ATM`, that row will be skipped
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
+- **Lloyds Credit month over-matching** — ~110 month positions per statement is normal; over-matches produce empty slices that skip cleanly. Not a bug, just noisy logs.
 
 ---
 
 ## Things still to do
 
-- [ ] Fix `parseLloydsCredit` CR detection (debug log added, needs one upload to diagnose)
-- [ ] Delete and re-upload all Lloyds Credit statements once fix is confirmed
-- [ ] Add duplicate statement guard (idempotent re-upload) — agreed, worth adding
 - [ ] Upload Revolut Current and Savings statements
 - [ ] Upload and verify Amex Gold statement (28 May 2026)
 - [ ] Update Amex goal `current_amount` once Amex parser verified
+- [ ] Add duplicate statement guard (idempotent re-upload)
 - [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
 - [ ] Search/filter transactions by description
