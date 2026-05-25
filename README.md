@@ -143,10 +143,10 @@ Settings → Git repository → reconnect GitHub, then re-deploy.
 
 ### To clear bad parse data from Supabase
 ```sql
-delete from transactions where account_id = (select id from accounts where account_number = '39741868');
-delete from statements  where account_id = (select id from accounts where account_number = '39741868');
+delete from transactions where account_id = (select id from accounts where name = 'Platinum Credit');
+delete from statements  where account_id = (select id from accounts where name = 'Platinum Credit');
 ```
-Change the account number to target a different account. To nuke everything:
+To nuke everything:
 ```sql
 delete from transactions;
 delete from statements;
@@ -156,7 +156,16 @@ delete from statements;
 
 ## PDF Parsing
 
-### Lloyds (Current + Credit) — **token-walking parser**
+### Parser routing (in `startParse`)
+```
+Lloyds + account.type === 'credit'  → parseLloydsCredit
+Lloyds (all others)                 → parseLloyds
+Revolut + account.name includes 'saving' → parseRevolutSavings
+Revolut (all others)                → parseRevolutCurrent
+Amex / American Express             → parseAmex
+```
+
+### Lloyds Current (token-walking parser)
 PDF.js gives back text with mixed-up column labels and values. The parser:
 1. **Strips label noise** — removes `Date`, `Description`, `Type`, `Money In (£)`, `Money Out (£)`, `Balance (£)`, `blank.`, `(£)`
 2. **Tokenises** the cleaned text on whitespace
@@ -166,24 +175,48 @@ PDF.js gives back text with mixed-up column labels and values. The parser:
    - Description = tokens before TYPE, stripped of leading/trailing punctuation
    - Amounts = `\d+\.\d{2}` tokens after TYPE — last is balance, first is the in/out amount
    - In/out direction is decided by TYPE (FPI/BGC/COR = in; rest = out)
-5. **TFR direction flip** — if the description references an own-account marker, swap in↔out so the transfer shows the correct side
+5. **TFR direction flip** — if description references own-account marker, swap in↔out
 - Date format: `07 Apr 26`
+- **Debugging:** logs token count, first 30 tokens, date positions found, parsed count, sample of 3, `skip row (no type)` per skipped row
 
-**Debugging:** parser logs token count, first 30 tokens, date positions found, parsed count, sample of 3, and any "skip row (no type)" lines.
+### Lloyds Credit (parseLloydsCredit) — ⚠️ CR BUG UNRESOLVED
+Lloyds Platinum Mastercard PDF layout differs entirely from current accounts:
+- No date column — rows begin with a **full month name** (OCTOBER, NOVEMBER…)
+- Format per row: `MONTHNAME DESCRIPTION AMOUNT [CR] CARD_REF`
+  - `CARD_REF` = 4-digit fixed number (last 4 of card, e.g. `1880`) — NOT a balance
+  - `CR` suffix = payment received (amountIn); no suffix = purchase (amountOut)
+- No running balance per row
+
+**Current strategy:**
+1. Tokenise full text
+2. Extract statement year (first `20XX` token)
+3. Find all full month-name token positions — these delimit rows
+4. For each row: strip trailing card ref, detect `CR`, find last `\d+\.\d{2}` as amount
+5. `CR` → type `PAY`, amountIn; no CR → type `PUR`, amountOut
+
+**Known bug:** `isCR` never fires. Payment rows are stored as `PUR`/`amountOut`.
+- Root cause not yet confirmed. Two candidates:
+  - (a) `CR` is joined to the amount with no space (e.g. `251.96CR`) so it's not a standalone token
+  - (b) The row is fragmented by a spurious month token inside the payment description prose, putting `CR` in a different row slice than the amount
+- `month positions found: 111` for a single statement confirms heavy over-matching — month words in header/footer prose are being treated as row starters
+- Debug log `[parseLloydsCredit] PAYMENT row toks:` has been added to the current `index.html` — **this log needs to be captured to diagnose the bug**
+
+**To fix:** Push current `index.html`, re-upload one credit statement, grab the `PAYMENT row toks:` console output, then fix based on what the tokens actually look like.
 
 ### Revolut Current
 Columns: Date | Description | Money out | Money in | Balance
 - Date format: `15 Apr 2026`
 - Foreign-currency sub-rows (Fee/Rate/EUR) are skipped
+- Written, **untested on real data**
 
 ### Revolut Savings
 Same columns as Revolut Current. Interest entries tagged as `interest` category.
+- Written, **untested on real data**
 
 ### Amex Gold
 - Statement closes 28th of each month — first one due 28 May 2026
 - Parser written speculatively — test on first statement and check console
-- If `[parseAmex] parsed 0 transactions` appears, the raw text is dumped to console for debugging
-- Sections: "New Charges" (purchases), "Payments and Credits", "Fees and Adjustments"
+- If `[parseAmex] parsed 0 transactions` appears, raw text is dumped to console
 
 ---
 
@@ -191,12 +224,13 @@ Same columns as Revolut Current. Interest entries tagged as `interest` category.
 
 Priority order (first match wins):
 
-1. Commission — FPI from INFINITY RENEWABLE → `commission`, `is_commission = true`
-2. Grocery reimbursement — TFR/FPO out of Rent & Bills ≤ £300 referencing Main Current → `groceries`
-3. Grocery reimbursement — TFR/FPI into Main Current ≤ £300 referencing Rent & Bills → `groceries`
-4. Internal transfer — TFR/FPO/FPI referencing own account numbers or R LANGFORD → `transfer`, excluded from spend
-5. Pattern rules (subscriptions, CS2, bills, groceries by merchant name)
-6. Type fallbacks — FPI → income, DD/SO → bills, DEB → spending
+1. Grocery reimbursement — TFR/FPO out of Rent & Bills ≤ £300 referencing Main Current → `groceries`
+2. Grocery reimbursement — TFR/FPI into Main Current ≤ £300 referencing Rent & Bills → `groceries`
+3. Internal transfer — TFR/FPO/FPI referencing own account numbers or R LANGFORD → `transfer`, excluded from spend
+4. Commission — FPI from `INFINITY RENEWABLE` → `commission`, `is_commission = true`
+5. Revolut interest — type `INT` → `interest`
+6. Pattern rules (subscriptions, CS2, bills, groceries by merchant name)
+7. Type fallbacks — FPI/BGC/DEP/PAY → income, DD/SO → bills, DEB → spending
 
 ### Key constants in index.html
 ```js
@@ -210,21 +244,23 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 
 ## Known issues / watch points
 
+- **Lloyds Credit CR bug** — payment rows stored as PUR/amountOut. Debug log added, needs one more upload to diagnose. See parser notes above.
+- **Lloyds Credit month over-matching** — 111 month positions found in a single statement. Month words in header/footer prose (e.g. `May` in `35 | May | 2026`) are triggering false row starts. The real fix may need a stricter row-start heuristic (e.g. require the month token to be followed by a money-like pattern within N tokens).
 - **Amex parser** — speculative, untested until 28 May 2026 statement
-- **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future Lloyds statement uses a code outside `DD/DEB/FPI/FPO/TFR/SO/CPT/COR/BGC/CHQ/ATM`, that row will be skipped with a `skip row (no type)` log — add the code and verify it can't collide with description words
-- **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on a real Rent & Bills statement
+- **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside `DD/DEB/FPI/FPO/TFR/SO/CPT/COR/BGC/CHQ/ATM`, that row will be skipped
+- **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
 
 ---
 
 ## Things still to do
 
-- [ ] Upload remaining Lloyds Main Current months (Nov 2025 – Mar 2026)
-- [ ] Upload Lloyds Rent & Bills statements
-- [ ] Upload Lloyds Credit statements
+- [ ] Fix `parseLloydsCredit` CR detection (debug log added, needs one upload to diagnose)
+- [ ] Delete and re-upload all Lloyds Credit statements once fix is confirmed
+- [ ] Add duplicate statement guard (idempotent re-upload) — agreed, worth adding
 - [ ] Upload Revolut Current and Savings statements
 - [ ] Upload and verify Amex Gold statement (28 May 2026)
-- [ ] Update Amex goal `current_amount` once Amex parser is verified
+- [ ] Update Amex goal `current_amount` once Amex parser verified
 - [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
 - [ ] Search/filter transactions by description
