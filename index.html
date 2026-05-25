@@ -2788,21 +2788,24 @@ function parseLloydsCredit(text) {
     const rowToks = tokens.slice(start + 1, end);
     if (rowToks.length === 0) continue;
 
-    // Strip trailing card reference (4-digit token at end)
+    // Strip trailing noise: card ref (4-digit) and CR can appear in either order
+    // e.g. "251.96 CR 1880" or "251.96 1880 CR" — strip both
     let toks = [...rowToks];
+    let isCR = false;
+    // Pass 1: strip trailing card ref
+    if (toks.length > 0 && isCardRef(toks[toks.length - 1])) toks.pop();
+    // Pass 2: now check for CR
+    if (toks.length > 0 && toks[toks.length - 1].toUpperCase() === 'CR') {
+      isCR = true;
+      toks.pop();
+    }
+    // Pass 3: card ref might follow CR (other order) — strip again if needed
     if (toks.length > 0 && isCardRef(toks[toks.length - 1])) toks.pop();
 
     // Skip rows that are just noise (statement summary, "New balance", etc.)
     const rowText = toks.join(' ').toUpperCase();
     if (/NEW BALANCE|MINIMUM PAYMENT|INTEREST|CREDIT LIMIT|SUMMARY|STATEMENT|ACCOUNT NUMBER/.test(rowText)) continue;
     if (toks.length < 2) continue;
-
-    // Detect CR (credit/payment)
-    let isCR = false;
-    if (toks[toks.length - 1] === 'CR') {
-      isCR = true;
-      toks.pop();
-    }
 
     // Find the last money token — that's the transaction amount
     let amountIdx = -1;
@@ -2822,6 +2825,7 @@ function parseLloydsCredit(text) {
     const amountIn  = isCR ? amount : 0;
     const amountOut = isCR ? 0 : amount;
     const type      = isCR ? 'PAY' : 'PUR';
+    if (isCR) console.log('[parseLloydsCredit] CR row:', desc, amount);
 
     transactions.push({ date: dateStr, description: desc, type, amountIn, amountOut, runningBalance: null });
   }
