@@ -500,6 +500,31 @@ a { color: inherit; text-decoration: none; }
 }
 .cs2-row .cs2-del:hover { color: var(--red); }
 
+/* Fixed-height wrappers so Chart.js can't ever blow up the layout */
+.sparkline-wrap {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  margin-top: 14px;
+}
+.sparkline-wrap canvas { display: block !important; }
+
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 140px;
+}
+.chart-canvas-wrap canvas { display: block !important; }
+
+/* Flame palette for net pay chart */
+:root {
+  --flame:        #ff8a3d;
+  --flame-light:  #ffb267;
+  --flame-deep:   #c95d17;
+  --flame-dim:    rgba(255,138,61,0.14);
+  --flame-border: rgba(255,138,61,0.22);
+}
+
 .page-title {
   font-family: var(--font-head);
   font-size: 1.5rem;
@@ -1686,7 +1711,7 @@ a { color: inherit; text-decoration: none; }
       <div class="pulse-hero-label">Net Worth</div>
       <div class="pulse-hero-amount" id="pulse-net-worth">—</div>
       <div class="pulse-hero-meta" id="pulse-net-worth-meta">Loading…</div>
-      <canvas id="pulse-nw-sparkline" height="56" style="margin-top:14px;width:100%;display:block"></canvas>
+      <div class="sparkline-wrap"><canvas id="pulse-nw-sparkline"></canvas></div>
     </div>
 
     <!-- Pulse number grid -->
@@ -1736,8 +1761,8 @@ a { color: inherit; text-decoration: none; }
     <!-- Net Pay month-on-month chart -->
     <div id="dash-netpay-chart-wrap" class="hidden">
       <div class="section-title-row"><span class="section-title-text">Net Pay — Month-on-Month</span></div>
-      <div class="card" style="padding:18px 16px 14px">
-        <canvas id="netpay-chart" height="160"></canvas>
+      <div class="card" style="padding:16px 14px 12px">
+        <div class="chart-canvas-wrap"><canvas id="netpay-chart"></canvas></div>
       </div>
     </div>
 
@@ -2334,14 +2359,10 @@ async function loadDashboard() {
       .limit(1);
     if (stmts && stmts[0]) latestPeriodEnd = stmts[0].period_end;
   }
-  document.getElementById('dash-header-period').textContent =
-    latestPeriodEnd ? formatMonthYear(latestPeriodEnd) : 'No data yet';
-
-  // ── Build the analytics month key (YYYY-MM) ─────────────────────────────
-  // Anchor on the latest statement month so the dashboard reflects
-  // the most recent uploaded data, not the wall-clock current month.
-  const anchorDate = latestPeriodEnd ? new Date(latestPeriodEnd) : new Date();
-  const anchorYM   = anchorDate.toISOString().slice(0,7); // "2026-04"
+  // ── Load all relevant transactions for analytics ────────────────────────
+  const { data: txns } = await sb
+    .from('transactions')
+    .select('account_id, date, description, type, amount_in, amount_out, is_internal_transfer, is_commission, category');
 
   // ── Load wealth snapshots ───────────────────────────────────────────────
   const { data: snapshots } = await sb
@@ -2349,10 +2370,25 @@ async function loadDashboard() {
     .select('*')
     .order('month', { ascending: true });
 
-  // ── Load all relevant transactions for analytics ────────────────────────
-  const { data: txns } = await sb
-    .from('transactions')
-    .select('account_id, date, description, type, amount_in, amount_out, is_internal_transfer, is_commission, category');
+  // ── Build the analytics month key (YYYY-MM) ─────────────────────────────
+  // Anchor on the latest month that has Infinity FPI data so Pulse reflects
+  // the most recent "real" income month, not an empty current month.
+  // Fallback chain: latest FPI month → latest statement month → current month.
+  let anchorYM = null;
+  if (txns && txns.length) {
+    const fpiMonths = txns
+      .filter(t => t.is_commission || /INFINITY\s*RENEW/i.test(t.description || ''))
+      .map(t => (t.date || '').slice(0,7))
+      .filter(Boolean)
+      .sort();
+    if (fpiMonths.length) anchorYM = fpiMonths[fpiMonths.length - 1];
+  }
+  if (!anchorYM && latestPeriodEnd) anchorYM = latestPeriodEnd.slice(0,7);
+  if (!anchorYM) anchorYM = new Date().toISOString().slice(0,7);
+
+  // Header period reflects the anchor month (not raw latest statement)
+  document.getElementById('dash-header-period').textContent =
+    formatSnapshotMonth(anchorYM);
 
   // ── Load manual CS2 investments ─────────────────────────────────────────
   const { data: cs2Invest } = await sb
@@ -2381,7 +2417,7 @@ function computeNetWorth(snapshots, anchorYM) {
   let snapshotMonth = null;
 
   // Latest snapshot row (most recent month)
-  const latest = (snapshots || []).slice().sort((a,b) => b.month.localeCompare(a.month))[0];
+  const latest = (snapshots || []).slice().sort((a,b) => String(b.month).localeCompare(String(a.month)))[0];
   if (latest) {
     snapshotMonth = latest.month;
     nw += parseFloat(latest.sipp_balance || 0);
@@ -2406,16 +2442,25 @@ function computeNetWorth(snapshots, anchorYM) {
         parts.push(`Savings ${formatGBP(savBal)}`);
         document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
         document.getElementById('pulse-net-worth-meta').textContent =
-          (snapshotMonth ? `As of ${formatMonthYear(snapshotMonth + '-01')} · ` : '') + parts.join(' · ');
+          (snapshotMonth ? `As of ${formatSnapshotMonth(snapshotMonth)} · ` : '') + parts.join(' · ');
         renderNwSparkline(snapshots, savBal);
       });
   } else {
     document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
     document.getElementById('pulse-net-worth-meta').textContent =
-      snapshotMonth ? `As of ${formatMonthYear(snapshotMonth + '-01')} · ` + parts.join(' · ')
+      snapshotMonth ? `As of ${formatSnapshotMonth(snapshotMonth)} · ` + parts.join(' · ')
                     : 'No snapshot yet — tap "Add / Edit"';
     renderNwSparkline(snapshots, 0);
   }
+}
+
+// Snapshot month can come back from PG as 'YYYY-MM-DD' or already 'YYYY-MM'.
+function formatSnapshotMonth(m) {
+  if (!m) return '';
+  const s = String(m).slice(0, 7); // 'YYYY-MM'
+  const [y, mo] = s.split('-').map(Number);
+  if (!y || !mo) return '';
+  return new Date(y, mo - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
 function renderNwSparkline(snapshots, currentSavingsBal) {
@@ -2426,8 +2471,8 @@ function renderNwSparkline(snapshots, currentSavingsBal) {
 
   if (nwSparklineInstance) { nwSparklineInstance.destroy(); nwSparklineInstance = null; }
 
-  const sorted = snapshots.slice().sort((a,b) => a.month.localeCompare(b.month));
-  const labels = sorted.map(s => s.month);
+  const sorted = snapshots.slice().sort((a,b) => String(a.month).localeCompare(String(b.month)));
+  const labels = sorted.map(s => String(s.month).slice(0,7));
   const values = sorted.map(s =>
     (parseFloat(s.sipp_balance||0) +
      parseFloat(s.isa_balance ||0) +
@@ -2639,9 +2684,9 @@ function renderSnapshotSummary(snapshots) {
       </div>`;
     return;
   }
-  const sorted = snapshots.slice().sort((a,b) => b.month.localeCompare(a.month));
+  const sorted = snapshots.slice().sort((a,b) => String(b.month).localeCompare(String(a.month)));
   const latest = sorted[0];
-  const monthLbl = formatMonthYear(latest.month + '-01');
+  const monthLbl = formatSnapshotMonth(latest.month);
   container.innerHTML = `
     <div class="card" style="padding:16px 20px">
       <div class="snapshot-row">
@@ -2753,16 +2798,16 @@ async function loadNetPayChart(txns) {
   if (netpayChartInstance) { netpayChartInstance.destroy(); netpayChartInstance = null; }
   const canvas = document.getElementById('netpay-chart');
   const ctx    = canvas.getContext('2d');
-  const grad   = ctx.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(87,242,136,0.85)');
-  grad.addColorStop(1, 'rgba(45,198,83,0.3)');
+  const grad   = ctx.createLinearGradient(0, 0, 0, 140);
+  grad.addColorStop(0, 'rgba(255,178,103,0.9)');
+  grad.addColorStop(1, 'rgba(201,93,23,0.35)');
 
   netpayChartInstance = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{
       data: values,
       backgroundColor: grad,
-      borderColor: 'rgba(87,242,136,0.9)',
+      borderColor: 'rgba(255,138,61,0.95)',
       borderWidth: 1, borderRadius: 6, borderSkipped: false,
     }] },
     options: {
@@ -2770,7 +2815,7 @@ async function loadNetPayChart(txns) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#141424', borderColor: 'rgba(155,93,229,0.3)', borderWidth: 1,
+          backgroundColor: '#141424', borderColor: 'rgba(255,138,61,0.35)', borderWidth: 1,
           titleColor: '#7777aa', bodyColor: '#f0eeff',
           titleFont: { family: "'DM Sans', sans-serif", size: 11 },
           bodyFont:  { family: "'Syne', sans-serif", size: 14, weight: '700' },
@@ -2787,7 +2832,7 @@ async function loadNetPayChart(txns) {
     }
   });
 
-  // Legend
+  // Legend (flame coloured)
   const existingLegend = wrap.querySelector('.chart-legend');
   if (existingLegend) existingLegend.remove();
   const card = wrap.querySelector('.card');
@@ -2796,11 +2841,11 @@ async function loadNetPayChart(txns) {
   legend.innerHTML = `
     <div>
       <div style="margin-bottom:2px">Total (${months.length} month${months.length !== 1 ? 's' : ''})</div>
-      <div class="chart-legend-val">${formatGBP(total)}</div>
+      <div class="chart-legend-val" style="color:var(--flame-light)">${formatGBP(total)}</div>
     </div>
     <div style="text-align:right">
       <div style="margin-bottom:2px">Monthly avg</div>
-      <div class="chart-legend-val">${formatGBP(avg)}</div>
+      <div class="chart-legend-val" style="color:var(--flame-light)">${formatGBP(avg)}</div>
     </div>
   `;
   card.appendChild(legend);
