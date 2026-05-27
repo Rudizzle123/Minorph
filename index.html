@@ -3563,19 +3563,30 @@ function renderSpendView() {
   // Excluded categories — these aren't "spend"
   const EXCLUDE = new Set(['transfer', 'commission', 'interest', 'income']);
 
+  // Description-level exclusions — descriptions that should never count as spend,
+  // even if the categoriser left them as 'other'/'spending'. These are wealth movements
+  // or already-counted spend (credit card payoff), not consumption.
+  const NON_SPEND_DESC = /FIDELITY|FIL\s*INV|FIL\s*LIFE|FIL\s*SIPP|FIL\s*ISA|FSTL\s*PRIMARY\s*TRUST|FASL\s*PRIM\s*CLIENT|REVOLUT|PLATINUM\s*CREDIT|LLOYDS\s*CREDIT\s*CARD/i;
+
+  const isNonSpend = t => {
+    if (t.is_internal_transfer) return true;
+    if (t.is_commission) return true;
+    if (EXCLUDE.has(t.category || 'other')) return true;
+    if (NON_SPEND_DESC.test(t.description || '')) return true;
+    return false;
+  };
+
   // ── Aggregate this month's outflows by category ───────────────────────
   const catMonth = {};       // { category: sum }
   const merchantMonth = {};  // { description: sum }
   let totalSpend = 0;
 
   spendCache.forEach(t => {
-    if (t.is_internal_transfer) return;
-    if (t.is_commission) return;
+    if (isNonSpend(t)) return;
     if (!t.date || !t.date.startsWith(month)) return;
     const out = parseFloat(t.amount_out) || 0;
     if (out <= 0) return;
     const cat = t.category || 'other';
-    if (EXCLUDE.has(cat)) return;
     catMonth[cat] = (catMonth[cat] || 0) + out;
     const merchant = cleanMerchantName(t.description || '—');
     merchantMonth[merchant] = (merchantMonth[merchant] || 0) + out;
@@ -3586,13 +3597,11 @@ function renderSpendView() {
   const allMonths = new Set();
   const catByMonth = {};     // { month: { cat: sum } }
   spendCache.forEach(t => {
-    if (t.is_internal_transfer) return;
-    if (t.is_commission) return;
+    if (isNonSpend(t)) return;
     if (!t.date) return;
     const out = parseFloat(t.amount_out) || 0;
     if (out <= 0) return;
     const cat = t.category || 'other';
-    if (EXCLUDE.has(cat)) return;
     const m = t.date.slice(0,7);
     allMonths.add(m);
     if (!catByMonth[m]) catByMonth[m] = {};
