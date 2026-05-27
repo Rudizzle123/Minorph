@@ -319,6 +319,187 @@ a { color: inherit; text-decoration: none; }
   margin: 24px 0 10px;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  margin: 24px 0 10px;
+  gap: 8px;
+}
+
+.section-title-text {
+  font-family: var(--font-head);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.section-action {
+  border: 1px solid var(--purple-border);
+  background: var(--purple-dim);
+  color: var(--purple-light);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.section-action:active { transform: scale(0.97); }
+
+/* ══════════════════════════════════════════════════════════
+   PULSE DASHBOARD
+══════════════════════════════════════════════════════════ */
+.pulse-hero {
+  margin: 4px 20px 20px;
+  padding: 22px 22px 18px;
+  border-radius: 22px;
+  background: var(--card-grad);
+  border: 1px solid var(--purple-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.pulse-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(155,93,229,0.10) 0%, rgba(45,198,83,0.08) 100%);
+  pointer-events: none;
+}
+
+.pulse-hero > * { position: relative; z-index: 1; }
+
+.pulse-hero-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.pulse-hero-amount {
+  font-family: var(--font-head);
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text) 0%, var(--purple-light) 60%, var(--green-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.pulse-hero-meta {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.pulse-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 4px;
+}
+
+.pulse-tile {
+  border-radius: 16px;
+  padding: 14px 14px 12px;
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.pulse-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(155,93,229,0.05) 0%, rgba(45,198,83,0.04) 100%);
+  pointer-events: none;
+}
+
+.pulse-tile > * { position: relative; z-index: 1; }
+
+.pulse-tile-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.pulse-tile-val {
+  font-family: var(--font-head);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.pulse-tile-sub {
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.pulse-tile-sub .trend-up   { color: var(--green-light); }
+.pulse-tile-sub .trend-down { color: var(--red); }
+
+/* Snapshot summary card */
+.snapshot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.snapshot-row:last-child { border-bottom: none; }
+
+.snapshot-name {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.snapshot-val {
+  font-family: var(--font-head);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--green-light);
+}
+
+.snapshot-meta {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+/* CS2 log row */
+.cs2-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.78rem;
+}
+.cs2-row:last-child { border-bottom: none; }
+.cs2-row .cs2-date  { color: var(--muted); font-size: 0.7rem; }
+.cs2-row .cs2-amt   { font-family: var(--font-head); font-weight: 700; color: var(--purple-light); }
+.cs2-row .cs2-del   {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 4px 8px; font-size: 0.85rem;
+}
+.cs2-row .cs2-del:hover { color: var(--red); }
+
 .page-title {
   font-family: var(--font-head);
   font-size: 1.5rem;
@@ -1500,34 +1681,63 @@ a { color: inherit; text-decoration: none; }
       <div class="header-avatar" id="user-avatar" onclick="signOut()">R</div>
     </div>
 
-    <!-- Hero -->
-    <div class="hero">
-      <div class="hero-label">Total Balance</div>
-      <div class="hero-amount" id="dash-total-balance">£0.00</div>
-      <div class="hero-pills" id="dash-hero-pills">
-        <div class="loading-wrap" style="padding:8px 0"><div class="spinner"></div></div>
+    <!-- Net Worth Hero -->
+    <div class="pulse-hero">
+      <div class="pulse-hero-label">Net Worth</div>
+      <div class="pulse-hero-amount" id="pulse-net-worth">—</div>
+      <div class="pulse-hero-meta" id="pulse-net-worth-meta">Loading…</div>
+      <canvas id="pulse-nw-sparkline" height="56" style="margin-top:14px;width:100%;display:block"></canvas>
+    </div>
+
+    <!-- Pulse number grid -->
+    <div class="pulse-grid">
+      <div class="pulse-tile">
+        <div class="pulse-tile-label">Net Pay (Month)</div>
+        <div class="pulse-tile-val val-green" id="pulse-net-pay">—</div>
+        <div class="pulse-tile-sub" id="pulse-net-pay-sub">6-mo avg —</div>
+      </div>
+      <div class="pulse-tile">
+        <div class="pulse-tile-label">Savings Rate</div>
+        <div class="pulse-tile-val val-purple" id="pulse-savings-rate">—</div>
+        <div class="pulse-tile-sub" id="pulse-savings-rate-sub">6-mo avg —</div>
+      </div>
+      <div class="pulse-tile">
+        <div class="pulse-tile-label">Invested (Month)</div>
+        <div class="pulse-tile-val val-green" id="pulse-invested">—</div>
+        <div class="pulse-tile-sub" id="pulse-invested-sub">6-mo avg —</div>
+      </div>
+      <div class="pulse-tile">
+        <div class="pulse-tile-label">Discretionary</div>
+        <div class="pulse-tile-val val-white" id="pulse-discretionary">—</div>
+        <div class="pulse-tile-sub" id="pulse-discretionary-sub">6-mo avg —</div>
       </div>
     </div>
 
-    <!-- Account cards -->
-    <div class="section-title">Accounts</div>
-    <div id="dash-accounts">
-      <div class="loading-wrap"><div class="spinner"></div><span>Loading accounts…</span></div>
+    <!-- Wealth Snapshot Input -->
+    <div class="section-title-row">
+      <span class="section-title-text">Wealth Snapshot</span>
+      <button class="section-action" onclick="openSnapshotModal()">＋ Add / Edit</button>
+    </div>
+    <div id="dash-snapshot-summary">
+      <div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>
     </div>
 
-    <!-- Commission -->
-    <div class="section-title">Commission Income</div>
-    <div id="dash-commission">
-      <div class="empty-state" style="padding:24px">
-        <div class="empty-sub">Upload a statement to see commission data</div>
+    <!-- CS2 Investments -->
+    <div class="section-title-row">
+      <span class="section-title-text">CS2 Investments</span>
+      <button class="section-action" onclick="openCs2Modal()">＋ Log purchase</button>
+    </div>
+    <div id="dash-cs2-summary">
+      <div class="empty-state" style="padding:18px">
+        <div class="empty-sub">No CS2 investments logged yet</div>
       </div>
     </div>
 
-    <!-- Commission chart (hidden until 2+ months of data) -->
-    <div id="dash-commission-chart-wrap" class="hidden">
-      <div class="section-title">Month-on-Month</div>
+    <!-- Net Pay month-on-month chart -->
+    <div id="dash-netpay-chart-wrap" class="hidden">
+      <div class="section-title-row"><span class="section-title-text">Net Pay — Month-on-Month</span></div>
       <div class="card" style="padding:18px 16px 14px">
-        <canvas id="commission-chart" height="160"></canvas>
+        <canvas id="netpay-chart" height="160"></canvas>
       </div>
     </div>
 
@@ -1804,6 +2014,75 @@ a { color: inherit; text-decoration: none; }
   </div>
 </div>
 
+<!-- ════ WEALTH SNAPSHOT MODAL ════ -->
+<div class="modal-backdrop hidden" id="snapshot-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Wealth Snapshot</div>
+    <div class="modal-sub" id="snapshot-modal-sub">Enter balances for the selected month</div>
+    <div class="modal-field">
+      <div class="modal-label">Month</div>
+      <input class="modal-input" id="snapshot-month-input" type="month">
+    </div>
+    <div class="modal-input-row">
+      <div>
+        <div class="modal-label">SIPP balance (£)</div>
+        <input class="modal-input" id="snapshot-sipp-bal" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div>
+        <div class="modal-label">SIPP contrib YTD (cash)</div>
+        <input class="modal-input" id="snapshot-sipp-contrib" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="modal-input-row">
+      <div>
+        <div class="modal-label">S&S ISA balance (£)</div>
+        <input class="modal-input" id="snapshot-isa-bal" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div>
+        <div class="modal-label">ISA contrib YTD</div>
+        <input class="modal-input" id="snapshot-isa-contrib" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">CS2 portfolio value (£)</div>
+      <input class="modal-input" id="snapshot-cs2-bal" type="number" step="0.01" min="0" placeholder="0.00">
+    </div>
+    <div class="modal-footer">
+      <button class="modal-save-btn" onclick="saveSnapshot()">Save snapshot</button>
+      <button class="modal-delete-btn hidden" id="snapshot-delete-btn" onclick="deleteSnapshot()" style="margin-bottom:10px">Delete snapshot</button>
+      <button class="modal-close-btn" onclick="closeSnapshotModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ CS2 PURCHASE MODAL ════ -->
+<div class="modal-backdrop hidden" id="cs2-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Log CS2 Purchase</div>
+    <div class="modal-sub">Amount counts toward "Invested this month"</div>
+    <div class="modal-input-row">
+      <div>
+        <div class="modal-label">Date</div>
+        <input class="modal-input" id="cs2-date-input" type="date">
+      </div>
+      <div>
+        <div class="modal-label">Amount (£)</div>
+        <input class="modal-input" id="cs2-amt-input" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Notes (optional)</div>
+      <input class="modal-input" id="cs2-notes-input" type="text" placeholder="e.g. AK-47 Redline" maxlength="80">
+    </div>
+    <div class="modal-footer">
+      <button class="modal-save-btn" onclick="saveCs2()">Save purchase</button>
+      <button class="modal-close-btn" onclick="closeCs2Modal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ TOAST ════ -->
 <div class="toast" id="toast"></div>
 
@@ -2036,314 +2315,481 @@ function populateAccountSelects() {
 }
 
 // ═══════════════════════════════════════════════
-// DASHBOARD
+// PULSE DASHBOARD
 // ═══════════════════════════════════════════════
+let netpayChartInstance  = null;
+let nwSparklineInstance  = null;
+
 async function loadDashboard() {
-  // Get latest statement period
   const accountIds = userAccounts.map(a => a.id);
-  const { data: stmts } = accountIds.length > 0 ? await sb
-    .from('statements')
-    .select('period_end, closing_balance, account_id')
-    .in('account_id', accountIds)
-    .order('period_end', { ascending: false })
-    .limit(50) : { data: [] };
 
-  // Get most recent statement per account
-  const latestByAccount = {};
-  if (stmts) {
-    stmts.forEach(s => {
-      if (!latestByAccount[s.account_id]) latestByAccount[s.account_id] = s;
-    });
+  // ── Header period: most recent statement period across accounts ───────
+  let latestPeriodEnd = null;
+  if (accountIds.length > 0) {
+    const { data: stmts } = await sb
+      .from('statements')
+      .select('period_end')
+      .in('account_id', accountIds)
+      .order('period_end', { ascending: false })
+      .limit(1);
+    if (stmts && stmts[0]) latestPeriodEnd = stmts[0].period_end;
   }
+  document.getElementById('dash-header-period').textContent =
+    latestPeriodEnd ? formatMonthYear(latestPeriodEnd) : 'No data yet';
 
-  // Calculate total balance
-  let totalBalance = 0;
-  userAccounts.forEach(acc => {
-    const stmt = latestByAccount[acc.id];
-    if (stmt) totalBalance += parseFloat(stmt.closing_balance) || 0;
-  });
+  // ── Build the analytics month key (YYYY-MM) ─────────────────────────────
+  // Anchor on the latest statement month so the dashboard reflects
+  // the most recent uploaded data, not the wall-clock current month.
+  const anchorDate = latestPeriodEnd ? new Date(latestPeriodEnd) : new Date();
+  const anchorYM   = anchorDate.toISOString().slice(0,7); // "2026-04"
 
-  document.getElementById('dash-total-balance').textContent = formatGBP(totalBalance);
+  // ── Load wealth snapshots ───────────────────────────────────────────────
+  const { data: snapshots } = await sb
+    .from('wealth_snapshots')
+    .select('*')
+    .order('month', { ascending: true });
 
-  // Period label
-  const periods = Object.values(latestByAccount);
-  if (periods.length > 0) {
-    const latest = periods.sort((a,b) => new Date(b.period_end) - new Date(a.period_end))[0];
-    document.getElementById('dash-header-period').textContent =
-      formatMonthYear(latest.period_end);
-  } else {
-    document.getElementById('dash-header-period').textContent = 'No data yet';
-  }
-
-  // Get in/out totals
-  const { data: txnTotals } = await sb
+  // ── Load all relevant transactions for analytics ────────────────────────
+  const { data: txns } = await sb
     .from('transactions')
-    .select('account_id, amount_in, amount_out, is_internal_transfer, category')
-    .eq('is_internal_transfer', false);
+    .select('account_id, date, description, type, amount_in, amount_out, is_internal_transfer, is_commission, category');
 
-  // Aggregate per account
-  const accountTotals = {};
-  if (txnTotals) {
-    txnTotals.forEach(t => {
-      if (!accountTotals[t.account_id]) accountTotals[t.account_id] = { in: 0, out: 0, commission: 0 };
-      accountTotals[t.account_id].in  += parseFloat(t.amount_in)  || 0;
-      accountTotals[t.account_id].out += parseFloat(t.amount_out) || 0;
-      if (t.category === 'commission') {
-        accountTotals[t.account_id].commission += parseFloat(t.amount_in) || 0;
-      }
-    });
+  // ── Load manual CS2 investments ─────────────────────────────────────────
+  const { data: cs2Invest } = await sb
+    .from('manual_investments')
+    .select('*')
+    .eq('type', 'cs2')
+    .order('date', { ascending: false });
+
+  // Compute everything in sequence
+  computeNetWorth(snapshots, anchorYM);
+  computeNetPay(txns, anchorYM);
+  computeSavingsRate(txns, anchorYM);
+  computeInvestedRate(txns, cs2Invest, snapshots, anchorYM);
+  computeDiscretionary(txns, anchorYM);
+  renderSnapshotSummary(snapshots);
+  renderCs2Summary(cs2Invest);
+  loadNetPayChart(txns);
+}
+
+// ───────────────────────────────────────────────
+// NET WORTH = SIPP + ISA + CS2 (latest snapshot) + Revolut Savings (latest stmt)
+// ───────────────────────────────────────────────
+function computeNetWorth(snapshots, anchorYM) {
+  let nw = 0;
+  let parts = [];
+  let snapshotMonth = null;
+
+  // Latest snapshot row (most recent month)
+  const latest = (snapshots || []).slice().sort((a,b) => b.month.localeCompare(a.month))[0];
+  if (latest) {
+    snapshotMonth = latest.month;
+    nw += parseFloat(latest.sipp_balance || 0);
+    nw += parseFloat(latest.isa_balance  || 0);
+    nw += parseFloat(latest.cs2_balance  || 0);
+    parts.push(`SIPP ${formatGBP(latest.sipp_balance||0)}`);
+    parts.push(`ISA ${formatGBP(latest.isa_balance||0)}`);
+    parts.push(`CS2 ${formatGBP(latest.cs2_balance||0)}`);
   }
 
-  // Compute hero pills
-  let totalIn = 0, totalOut = 0;
-  userAccounts.forEach(acc => {
-    const t = accountTotals[acc.id];
-    if (t) { totalIn += t.in; totalOut += t.out; }
-  });
-
-  const pillsEl = document.getElementById('dash-hero-pills');
-  if (totalIn > 0 || totalOut > 0) {
-    pillsEl.innerHTML = `
-      <span class="pill pill-green">↑ ${formatGBP(totalIn)} in</span>
-      <span class="pill pill-red">↓ ${formatGBP(totalOut)} out</span>
-    `;
+  // Revolut Savings balance — latest closing_balance from statements
+  const savingsAcc = userAccounts.find(a => a.name.toLowerCase() === 'revolut savings');
+  if (savingsAcc) {
+    sb.from('statements')
+      .select('closing_balance, period_end')
+      .eq('account_id', savingsAcc.id)
+      .order('period_end', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const savBal = (data && data[0]) ? parseFloat(data[0].closing_balance || 0) : 0;
+        nw += savBal;
+        parts.push(`Savings ${formatGBP(savBal)}`);
+        document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
+        document.getElementById('pulse-net-worth-meta').textContent =
+          (snapshotMonth ? `As of ${formatMonthYear(snapshotMonth + '-01')} · ` : '') + parts.join(' · ');
+        renderNwSparkline(snapshots, savBal);
+      });
   } else {
-    pillsEl.innerHTML = `<span class="pill pill-muted">No transactions yet</span>`;
+    document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
+    document.getElementById('pulse-net-worth-meta').textContent =
+      snapshotMonth ? `As of ${formatMonthYear(snapshotMonth + '-01')} · ` + parts.join(' · ')
+                    : 'No snapshot yet — tap "Add / Edit"';
+    renderNwSparkline(snapshots, 0);
   }
-
-  // Render account cards
-  renderAccountCards(latestByAccount, accountTotals);
-
-  // Commission section
-  renderCommission(accountTotals);
 }
 
-function renderAccountCards(latestByAccount, accountTotals) {
-  const container = document.getElementById('dash-accounts');
+function renderNwSparkline(snapshots, currentSavingsBal) {
+  if (!snapshots || snapshots.length === 0) return;
+  const canvas = document.getElementById('pulse-nw-sparkline');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
 
-  if (userAccounts.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🏦</div>
-        <div class="empty-title">No accounts set up</div>
-        <div class="empty-sub">Run the Supabase schema SQL to seed your accounts, then refresh.</div>
-      </div>`;
-    return;
-  }
+  if (nwSparklineInstance) { nwSparklineInstance.destroy(); nwSparklineInstance = null; }
 
-  const ACCOUNT_META = {
-    'main current':    { emoji: '🏦', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
-    'rent & bills':    { emoji: '🏠', balClass: 'bal-green',  badgeClass: 'badge-g', tint: 'green-tint' },
-    'revolut current': { emoji: '✈️', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
-    'revolut savings': { emoji: '💰', balClass: 'bal-green',  badgeClass: 'badge-g', tint: 'green-tint' },
-    'platinum credit': { emoji: '💳', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
-    'amex gold':       { emoji: '✨', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' },
-  };
+  const sorted = snapshots.slice().sort((a,b) => a.month.localeCompare(b.month));
+  const labels = sorted.map(s => s.month);
+  const values = sorted.map(s =>
+    (parseFloat(s.sipp_balance||0) +
+     parseFloat(s.isa_balance ||0) +
+     parseFloat(s.cs2_balance ||0))
+  );
+  // Add current savings balance to most recent point only (we don't have history)
+  if (values.length) values[values.length-1] += currentSavingsBal;
 
-  let html = '';
-  userAccounts.forEach(acc => {
-    const key   = acc.name.toLowerCase();
-    const meta  = ACCOUNT_META[key] || { emoji: '🏦', balClass: 'bal-purple', badgeClass: 'badge-p', tint: '' };
-    const stmt  = latestByAccount[acc.id];
-    const tots  = accountTotals[acc.id] || { in: 0, out: 0 };
-    const bal   = stmt ? parseFloat(stmt.closing_balance) : null;
-    const balStr = bal !== null ? formatGBP(bal) : '—';
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0, 'rgba(155,93,229,0.5)');
+  grad.addColorStop(1, 'rgba(155,93,229,0.02)');
 
-    // Special stats per account
-    let statsHtml = '';
-    if (key === 'rent & bills') {
-      statsHtml = `
-        <div><div class="stat-label">Rent</div><div class="stat-val val-white">${formatGBP(tots.rent || 0)}</div></div>
-        <div><div class="stat-label">Energy</div><div class="stat-val val-white">${formatGBP(tots.energy || 0)}</div></div>
-      `;
-    } else if (key === 'revolut savings') {
-      statsHtml = `
-        <div><div class="stat-label">Deposited</div><div class="stat-val val-white">${formatGBP(tots.in)}</div></div>
-        <div><div class="stat-label">Interest</div><div class="stat-val val-green">${formatGBP(tots.interest || 0)}</div></div>
-      `;
-    } else if (key === 'amex gold') {
-      statsHtml = `<div><div class="stat-label">Status</div><div class="stat-val val-muted">Pending</div></div>`;
-    } else {
-      statsHtml = `
-        <div><div class="stat-label">Money In</div><div class="stat-val val-green">${formatGBP(tots.in)}</div></div>
-        <div><div class="stat-label">Money Out</div><div class="stat-val val-red">${formatGBP(tots.out)}</div></div>
-      `;
-    }
-
-    html += `
-      <div class="card ${meta.tint}">
-        <div class="card-top">
-          <div>
-            <div class="card-name">${acc.name}${acc.account_number ? ' · ' + acc.account_number : ''}</div>
-            <div class="card-balance ${meta.balClass}">${balStr}</div>
-          </div>
-          <div class="card-badge ${meta.badgeClass}">${meta.emoji}</div>
-        </div>
-        <div class="card-divider"></div>
-        <div class="card-stats">${statsHtml}</div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-// Chart.js instance — kept so we can destroy+recreate on re-render
-let commissionChartInstance = null;
-
-function renderCommission(accountTotals) {
-  const container = document.getElementById('dash-commission');
-  let totalCommission = 0;
-  userAccounts.forEach(acc => {
-    const t = accountTotals[acc.id];
-    if (t) totalCommission += t.commission || 0;
-  });
-
-  if (totalCommission === 0) {
-    container.innerHTML = `
-      <div class="empty-state" style="padding:20px">
-        <div class="empty-sub">No commission income found.<br>Upload a Lloyds statement with INFINITY RENEWABLE transactions.</div>
-      </div>`;
-    document.getElementById('dash-commission-chart-wrap').classList.add('hidden');
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="income-bar">
-      <div class="income-row">
-        <span class="income-label">Infinity Renewables FPI</span>
-        <span class="income-val val-green">${formatGBP(totalCommission)}</span>
-      </div>
-      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
-      <div class="bar-labels">
-        <span>Commission income</span>
-        <span class="pill pill-green" style="font-size:0.62rem">FPI</span>
-      </div>
-    </div>
-  `;
-
-  // Load and render the month-on-month chart separately
-  loadCommissionChart();
-}
-
-// ─── Commission month-on-month Chart.js bar chart ───────────────────────
-/*
-  Queries all transactions where is_commission=true, groups by YYYY-MM,
-  sums amount_in per month, and renders a Chart.js bar chart.
-  Hidden if fewer than 1 month of data exists.
-*/
-async function loadCommissionChart() {
-  const { data, error } = await sb
-    .from('transactions')
-    .select('date, amount_in')
-    .eq('is_commission', true)
-    .order('date', { ascending: true });
-
-  if (error || !data || data.length === 0) {
-    document.getElementById('dash-commission-chart-wrap').classList.add('hidden');
-    return;
-  }
-
-  // Aggregate by month (YYYY-MM)
-  const monthMap = {};
-  data.forEach(t => {
-    const month = (t.date || '').slice(0, 7); // "2026-04"
-    if (!month) return;
-    monthMap[month] = (monthMap[month] || 0) + (parseFloat(t.amount_in) || 0);
-  });
-
-  const months = Object.keys(monthMap).sort();
-
-  // Always show the chart even with 1 month — useful for a single bar.
-  // (Chart will grow naturally as more months are uploaded.)
-  const labels = months.map(m => {
-    const [y, mo] = m.split('-');
-    const d = new Date(parseInt(y), parseInt(mo) - 1, 1);
-    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-  });
-  const values = months.map(m => monthMap[m]);
-  const maxVal = Math.max(...values);
-  const total  = values.reduce((a, b) => a + b, 0);
-  const avg    = values.length > 0 ? total / values.length : 0;
-
-  // Update legend in the card
-  const wrap = document.getElementById('dash-commission-chart-wrap');
-  wrap.classList.remove('hidden');
-
-  // Destroy previous Chart instance before creating a new one
-  if (commissionChartInstance) {
-    commissionChartInstance.destroy();
-    commissionChartInstance = null;
-  }
-
-  const canvas = document.getElementById('commission-chart');
-  const ctx    = canvas.getContext('2d');
-
-  // Gradient fill for bars
-  const grad = ctx.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(87,242,136,0.85)');
-  grad.addColorStop(1, 'rgba(45,198,83,0.3)');
-
-  commissionChartInstance = new Chart(ctx, {
-    type: 'bar',
+  nwSparklineInstance = new Chart(ctx, {
+    type: 'line',
     data: {
       labels,
       datasets: [{
         data: values,
+        borderColor: '#c77dff',
         backgroundColor: grad,
-        borderColor: 'rgba(87,242,136,0.9)',
-        borderWidth: 1,
-        borderRadius: 6,
-        borderSkipped: false,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#141424', borderColor: 'rgba(155,93,229,0.3)', borderWidth: 1,
+        titleColor: '#7777aa', bodyColor: '#f0eeff',
+        titleFont: { family: "'DM Sans', sans-serif", size: 11 },
+        bodyFont:  { family: "'Syne', sans-serif", size: 13, weight: '700' },
+        padding: 8,
+        callbacks: { label: c => ' ' + formatGBP(c.raw) }
+      } },
+      scales: { x: { display: false }, y: { display: false } },
+      animation: { duration: 400 }
+    }
+  });
+}
+
+// ───────────────────────────────────────────────
+// NET PAY = Infinity Renewable FPI for the anchor month + 6-mo rolling avg
+// ───────────────────────────────────────────────
+function computeNetPay(txns, anchorYM) {
+  if (!txns) return;
+  const byMonth = {};
+  txns.forEach(t => {
+    if (!t.is_commission && !/INFINITY\s*RENEW/i.test(t.description||'')) return;
+    const m = (t.date||'').slice(0,7);
+    if (!m) return;
+    byMonth[m] = (byMonth[m] || 0) + (parseFloat(t.amount_in) || 0);
+  });
+  const thisMonth = byMonth[anchorYM] || 0;
+  const allMonths = Object.keys(byMonth).sort();
+  const last6 = allMonths.slice(-6).map(m => byMonth[m]);
+  const avg = last6.length ? last6.reduce((a,b) => a+b, 0) / last6.length : 0;
+
+  document.getElementById('pulse-net-pay').textContent = formatGBP(thisMonth);
+  document.getElementById('pulse-net-pay-sub').innerHTML =
+    `6-mo avg <span class="trend-up">${formatGBP(avg)}</span>`;
+}
+
+// ───────────────────────────────────────────────
+// SAVINGS RATE = (Revolut Savings deposits this month) / net pay
+// We compute the £ value to show, with rate in sub.
+// ───────────────────────────────────────────────
+function computeSavingsRate(txns, anchorYM) {
+  if (!txns) return;
+  const savingsAcc = userAccounts.find(a => a.name.toLowerCase() === 'revolut savings');
+  if (!savingsAcc) {
+    document.getElementById('pulse-savings-rate').textContent = '—';
+    document.getElementById('pulse-savings-rate-sub').textContent = 'No savings account';
+    return;
+  }
+  // Per-month deposits into Revolut Savings (DEP type, not interest)
+  const byMonth = {};
+  txns.forEach(t => {
+    if (t.account_id !== savingsAcc.id) return;
+    if ((t.type || '').toUpperCase() === 'INT') return;
+    if (t.category === 'interest') return;
+    const amt = parseFloat(t.amount_in) || 0;
+    if (amt <= 0) return;
+    const m = (t.date || '').slice(0,7);
+    if (!m) return;
+    byMonth[m] = (byMonth[m] || 0) + amt;
+  });
+  // Net pay per month for ratio
+  const payByMonth = {};
+  txns.forEach(t => {
+    if (!t.is_commission && !/INFINITY\s*RENEW/i.test(t.description||'')) return;
+    const m = (t.date||'').slice(0,7);
+    if (!m) return;
+    payByMonth[m] = (payByMonth[m] || 0) + (parseFloat(t.amount_in) || 0);
+  });
+
+  const thisSaved = byMonth[anchorYM] || 0;
+  const thisPay   = payByMonth[anchorYM] || 0;
+  const thisRate  = thisPay > 0 ? (thisSaved / thisPay) * 100 : 0;
+
+  // 6-mo avg rate
+  const months = Object.keys(payByMonth).sort();
+  const last6  = months.slice(-6);
+  let totalSaved = 0, totalPay = 0;
+  last6.forEach(m => {
+    totalSaved += (byMonth[m]    || 0);
+    totalPay   += (payByMonth[m] || 0);
+  });
+  const avgRate = totalPay > 0 ? (totalSaved / totalPay) * 100 : 0;
+
+  document.getElementById('pulse-savings-rate').textContent =
+    thisPay > 0 ? thisRate.toFixed(1) + '%' : '—';
+  document.getElementById('pulse-savings-rate-sub').innerHTML =
+    `${formatGBP(thisSaved)} saved · 6-mo avg <span class="trend-up">${avgRate.toFixed(1)}%</span>`;
+}
+
+// ───────────────────────────────────────────────
+// INVESTED RATE = Fidelity transfers (out of Main Current) + manual CS2 purchases
+// Net pay basis for rate. Snapshots' SIPP/ISA contrib YTD are reference data only.
+// ───────────────────────────────────────────────
+function computeInvestedRate(txns, cs2Invest, snapshots, anchorYM) {
+  if (!txns) return;
+
+  // Fidelity outflows: FPO/TFR/DD transactions whose description matches Fidelity
+  const fidelityByMonth = {};
+  txns.forEach(t => {
+    const desc = (t.description || '').toUpperCase();
+    if (!/FIDELITY|FIL\s*INV|FIL\s*LIFE|FIL\s*SIPP|FIL\s*ISA/.test(desc)) return;
+    const out = parseFloat(t.amount_out) || 0;
+    if (out <= 0) return;
+    const m = (t.date || '').slice(0,7);
+    if (!m) return;
+    fidelityByMonth[m] = (fidelityByMonth[m] || 0) + out;
+  });
+
+  // CS2 manual purchases by month
+  const cs2ByMonth = {};
+  (cs2Invest || []).forEach(p => {
+    const m = (p.date || '').slice(0,7);
+    if (!m) return;
+    cs2ByMonth[m] = (cs2ByMonth[m] || 0) + (parseFloat(p.amount) || 0);
+  });
+
+  // Combined invested by month
+  const allMonths = new Set([
+    ...Object.keys(fidelityByMonth),
+    ...Object.keys(cs2ByMonth),
+  ]);
+  const invByMonth = {};
+  allMonths.forEach(m => {
+    invByMonth[m] = (fidelityByMonth[m] || 0) + (cs2ByMonth[m] || 0);
+  });
+
+  const thisInvested = invByMonth[anchorYM] || 0;
+  const sortedMonths = Object.keys(invByMonth).sort();
+  const last6 = sortedMonths.slice(-6).map(m => invByMonth[m]);
+  const avg   = last6.length ? last6.reduce((a,b) => a+b, 0) / last6.length : 0;
+
+  document.getElementById('pulse-invested').textContent = formatGBP(thisInvested);
+  document.getElementById('pulse-invested-sub').innerHTML =
+    `6-mo avg <span class="trend-up">${formatGBP(avg)}</span>`;
+}
+
+// ───────────────────────────────────────────────
+// DISCRETIONARY = spend this month minus bills/rent/subs/transfers/groceries
+// ───────────────────────────────────────────────
+function computeDiscretionary(txns, anchorYM) {
+  if (!txns) return;
+  const FIXED_CATS = new Set(['bills','rent','energy','subscription','transfer','interest','commission','groceries']);
+  const byMonth = {};
+  txns.forEach(t => {
+    if (t.is_internal_transfer) return;
+    if (t.is_commission) return;
+    if (FIXED_CATS.has(t.category)) return;
+    const out = parseFloat(t.amount_out) || 0;
+    if (out <= 0) return;
+    const m = (t.date || '').slice(0,7);
+    if (!m) return;
+    byMonth[m] = (byMonth[m] || 0) + out;
+  });
+  const thisD = byMonth[anchorYM] || 0;
+  const months = Object.keys(byMonth).sort();
+  const last6 = months.slice(-6).map(m => byMonth[m]);
+  const avg = last6.length ? last6.reduce((a,b) => a+b, 0) / last6.length : 0;
+  const diff = avg > 0 ? ((thisD - avg) / avg) * 100 : 0;
+  const trendCls = diff > 5 ? 'trend-down' : (diff < -5 ? 'trend-up' : '');
+  const diffStr  = diff === 0 || !isFinite(diff) ? '' :
+    ` <span class="${trendCls}">${diff > 0 ? '+' : ''}${diff.toFixed(0)}%</span>`;
+
+  document.getElementById('pulse-discretionary').textContent = formatGBP(thisD);
+  document.getElementById('pulse-discretionary-sub').innerHTML =
+    `6-mo avg ${formatGBP(avg)}${diffStr}`;
+}
+
+// ───────────────────────────────────────────────
+// Snapshot summary card
+// ───────────────────────────────────────────────
+function renderSnapshotSummary(snapshots) {
+  const container = document.getElementById('dash-snapshot-summary');
+  if (!snapshots || snapshots.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="padding:18px 20px">
+        <div class="empty-sub">
+          No snapshot yet. Tap <strong>Add / Edit</strong> and enter your most recent SIPP, S&S ISA and CS2 balances to start tracking net worth.
+        </div>
+      </div>`;
+    return;
+  }
+  const sorted = snapshots.slice().sort((a,b) => b.month.localeCompare(a.month));
+  const latest = sorted[0];
+  const monthLbl = formatMonthYear(latest.month + '-01');
+  container.innerHTML = `
+    <div class="card" style="padding:16px 20px">
+      <div class="snapshot-row">
+        <div>
+          <div class="snapshot-name">Fidelity SIPP</div>
+          <div class="snapshot-meta">Contrib YTD ${formatGBP(latest.sipp_contrib_cash||0)} (cash)</div>
+        </div>
+        <div class="snapshot-val">${formatGBP(latest.sipp_balance||0)}</div>
+      </div>
+      <div class="snapshot-row">
+        <div>
+          <div class="snapshot-name">Fidelity S&S ISA</div>
+          <div class="snapshot-meta">Contrib YTD ${formatGBP(latest.isa_contrib_cash||0)}</div>
+        </div>
+        <div class="snapshot-val">${formatGBP(latest.isa_balance||0)}</div>
+      </div>
+      <div class="snapshot-row">
+        <div>
+          <div class="snapshot-name">CS2 Portfolio</div>
+          <div class="snapshot-meta">Manual valuation</div>
+        </div>
+        <div class="snapshot-val">${formatGBP(latest.cs2_balance||0)}</div>
+      </div>
+      <div class="snapshot-row" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:12px;margin-top:4px">
+        <div class="snapshot-meta">As of ${monthLbl} · ${snapshots.length} snapshot${snapshots.length===1?'':'s'}</div>
+        <div></div>
+      </div>
+    </div>
+  `;
+}
+
+// ───────────────────────────────────────────────
+// CS2 purchases list
+// ───────────────────────────────────────────────
+function renderCs2Summary(cs2Invest) {
+  const container = document.getElementById('dash-cs2-summary');
+  if (!cs2Invest || cs2Invest.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="padding:18px 20px">
+        <div class="empty-sub">No CS2 purchases logged. Tap <strong>＋ Log purchase</strong> when you invest.</div>
+      </div>`;
+    return;
+  }
+  const total = cs2Invest.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  const rowsHtml = cs2Invest.slice(0, 6).map(p => `
+    <div class="cs2-row">
+      <div>
+        <div>${p.notes ? escapeHtml(p.notes) : 'Purchase'}</div>
+        <div class="cs2-date">${formatDate(p.date)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="cs2-amt">${formatGBP(p.amount)}</span>
+        <button class="cs2-del" onclick="deleteCs2('${p.id}')">×</button>
+      </div>
+    </div>
+  `).join('');
+  const moreNote = cs2Invest.length > 6 ? `<div class="snapshot-meta" style="margin-top:8px">+ ${cs2Invest.length - 6} earlier purchases</div>` : '';
+  container.innerHTML = `
+    <div class="card" style="padding:14px 18px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span class="snapshot-meta">Total invested</span>
+        <span class="snapshot-val">${formatGBP(total)}</span>
+      </div>
+      ${rowsHtml}
+      ${moreNote}
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+// ───────────────────────────────────────────────
+// Net Pay month-on-month chart (replaces old commission chart)
+// ───────────────────────────────────────────────
+async function loadNetPayChart(txns) {
+  if (!txns) return;
+  const byMonth = {};
+  txns.forEach(t => {
+    if (!t.is_commission && !/INFINITY\s*RENEW/i.test(t.description||'')) return;
+    const m = (t.date || '').slice(0,7);
+    if (!m) return;
+    byMonth[m] = (byMonth[m] || 0) + (parseFloat(t.amount_in) || 0);
+  });
+  const months = Object.keys(byMonth).sort();
+  if (months.length === 0) {
+    document.getElementById('dash-netpay-chart-wrap').classList.add('hidden');
+    return;
+  }
+  const labels = months.map(m => {
+    const [y, mo] = m.split('-');
+    const d = new Date(parseInt(y), parseInt(mo) - 1, 1);
+    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  });
+  const values = months.map(m => byMonth[m]);
+  const maxVal = Math.max(...values);
+  const total  = values.reduce((a,b) => a+b, 0);
+  const avg    = total / values.length;
+
+  const wrap = document.getElementById('dash-netpay-chart-wrap');
+  wrap.classList.remove('hidden');
+
+  if (netpayChartInstance) { netpayChartInstance.destroy(); netpayChartInstance = null; }
+  const canvas = document.getElementById('netpay-chart');
+  const ctx    = canvas.getContext('2d');
+  const grad   = ctx.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, 'rgba(87,242,136,0.85)');
+  grad.addColorStop(1, 'rgba(45,198,83,0.3)');
+
+  netpayChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{
+      data: values,
+      backgroundColor: grad,
+      borderColor: 'rgba(87,242,136,0.9)',
+      borderWidth: 1, borderRadius: 6, borderSkipped: false,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#141424',
-          borderColor: 'rgba(155,93,229,0.3)',
-          borderWidth: 1,
-          titleColor: '#7777aa',
-          bodyColor: '#f0eeff',
+          backgroundColor: '#141424', borderColor: 'rgba(155,93,229,0.3)', borderWidth: 1,
+          titleColor: '#7777aa', bodyColor: '#f0eeff',
           titleFont: { family: "'DM Sans', sans-serif", size: 11 },
-          bodyFont: { family: "'Syne', sans-serif", size: 14, weight: '700' },
+          bodyFont:  { family: "'Syne', sans-serif", size: 14, weight: '700' },
           padding: 10,
-          callbacks: {
-            label: ctx => ' ' + formatGBP(ctx.raw),
-          }
-        },
-      },
-      scales: {
-        x: {
-          grid:  { display: false },
-          border: { display: false },
-          ticks: {
-            color: '#7777aa',
-            font: { family: "'DM Sans', sans-serif", size: 10 },
-          }
-        },
-        y: {
-          display: false,
-          grid:  { display: false },
-          min: 0,
-          max: maxVal * 1.25,
+          callbacks: { label: c => ' ' + formatGBP(c.raw) }
         }
       },
-      animation: {
-        duration: 600,
-        easing: 'easeOutQuart',
-      }
+      scales: {
+        x: { grid: { display: false }, border: { display: false },
+             ticks: { color: '#7777aa', font: { family: "'DM Sans', sans-serif", size: 10 } } },
+        y: { display: false, grid: { display: false }, min: 0, max: maxVal * 1.25 }
+      },
+      animation: { duration: 600, easing: 'easeOutQuart' }
     }
   });
 
-  // Add summary legend below the chart
-  // Check if legend already exists (avoid duplicates on re-render)
+  // Legend
   const existingLegend = wrap.querySelector('.chart-legend');
   if (existingLegend) existingLegend.remove();
-
   const card = wrap.querySelector('.card');
   const legend = document.createElement('div');
   legend.className = 'chart-legend';
@@ -2358,6 +2804,127 @@ async function loadCommissionChart() {
     </div>
   `;
   card.appendChild(legend);
+}
+
+// ═══════════════════════════════════════════════
+// WEALTH SNAPSHOT MODAL
+// ═══════════════════════════════════════════════
+let editingSnapshotMonth = null;
+
+function openSnapshotModal() {
+  // Default to most recent snapshot month, or current month
+  const monthInput = document.getElementById('snapshot-month-input');
+  const nowYM = new Date().toISOString().slice(0,7);
+  monthInput.value = nowYM;
+  editingSnapshotMonth = null;
+  // Prefill if exists
+  prefillSnapshot(nowYM);
+  document.getElementById('snapshot-delete-btn').classList.add('hidden');
+  document.getElementById('snapshot-modal').classList.remove('hidden');
+  monthInput.onchange = () => prefillSnapshot(monthInput.value);
+}
+
+async function prefillSnapshot(ym) {
+  if (!ym) return;
+  const { data } = await sb
+    .from('wealth_snapshots')
+    .select('*')
+    .eq('month', ym + '-01')
+    .maybeSingle();
+  if (data) {
+    document.getElementById('snapshot-sipp-bal').value     = data.sipp_balance || '';
+    document.getElementById('snapshot-sipp-contrib').value = data.sipp_contrib_cash || '';
+    document.getElementById('snapshot-isa-bal').value      = data.isa_balance || '';
+    document.getElementById('snapshot-isa-contrib').value  = data.isa_contrib_cash || '';
+    document.getElementById('snapshot-cs2-bal').value      = data.cs2_balance || '';
+    editingSnapshotMonth = ym;
+    document.getElementById('snapshot-delete-btn').classList.remove('hidden');
+    document.getElementById('snapshot-modal-sub').textContent = 'Editing existing snapshot';
+  } else {
+    document.getElementById('snapshot-sipp-bal').value     = '';
+    document.getElementById('snapshot-sipp-contrib').value = '';
+    document.getElementById('snapshot-isa-bal').value      = '';
+    document.getElementById('snapshot-isa-contrib').value  = '';
+    document.getElementById('snapshot-cs2-bal').value      = '';
+    editingSnapshotMonth = null;
+    document.getElementById('snapshot-delete-btn').classList.add('hidden');
+    document.getElementById('snapshot-modal-sub').textContent = 'New snapshot for the selected month';
+  }
+}
+
+function closeSnapshotModal() {
+  document.getElementById('snapshot-modal').classList.add('hidden');
+}
+
+async function saveSnapshot() {
+  const ym = document.getElementById('snapshot-month-input').value;
+  if (!ym) { showToast('Pick a month', 'red'); return; }
+  const row = {
+    user_id:           currentUser.id,
+    month:             ym + '-01',
+    sipp_balance:      parseFloat(document.getElementById('snapshot-sipp-bal').value)     || 0,
+    sipp_contrib_cash: parseFloat(document.getElementById('snapshot-sipp-contrib').value) || 0,
+    isa_balance:       parseFloat(document.getElementById('snapshot-isa-bal').value)      || 0,
+    isa_contrib_cash:  parseFloat(document.getElementById('snapshot-isa-contrib').value)  || 0,
+    cs2_balance:       parseFloat(document.getElementById('snapshot-cs2-bal').value)      || 0,
+  };
+  const { error } = await sb
+    .from('wealth_snapshots')
+    .upsert(row, { onConflict: 'user_id,month' });
+  if (error) {
+    showToast(error.message, 'red');
+    return;
+  }
+  showToast('Snapshot saved');
+  closeSnapshotModal();
+  loadDashboard();
+}
+
+async function deleteSnapshot() {
+  if (!editingSnapshotMonth) return;
+  if (!confirm('Delete this snapshot? This cannot be undone.')) return;
+  const { error } = await sb
+    .from('wealth_snapshots')
+    .delete()
+    .eq('user_id', currentUser.id)
+    .eq('month', editingSnapshotMonth + '-01');
+  if (error) { showToast(error.message, 'red'); return; }
+  showToast('Snapshot deleted');
+  closeSnapshotModal();
+  loadDashboard();
+}
+
+// ═══════════════════════════════════════════════
+// CS2 PURCHASE MODAL
+// ═══════════════════════════════════════════════
+function openCs2Modal() {
+  document.getElementById('cs2-date-input').value  = new Date().toISOString().slice(0,10);
+  document.getElementById('cs2-amt-input').value   = '';
+  document.getElementById('cs2-notes-input').value = '';
+  document.getElementById('cs2-modal').classList.remove('hidden');
+}
+function closeCs2Modal() {
+  document.getElementById('cs2-modal').classList.add('hidden');
+}
+async function saveCs2() {
+  const date  = document.getElementById('cs2-date-input').value;
+  const amt   = parseFloat(document.getElementById('cs2-amt-input').value);
+  const notes = document.getElementById('cs2-notes-input').value.trim();
+  if (!date || !amt || amt <= 0) { showToast('Enter date + amount', 'red'); return; }
+  const { error } = await sb.from('manual_investments').insert({
+    user_id: currentUser.id, type: 'cs2', date, amount: amt, notes: notes || null
+  });
+  if (error) { showToast(error.message, 'red'); return; }
+  showToast('CS2 purchase logged');
+  closeCs2Modal();
+  loadDashboard();
+}
+async function deleteCs2(id) {
+  if (!confirm('Delete this CS2 purchase?')) return;
+  const { error } = await sb.from('manual_investments').delete().eq('id', id);
+  if (error) { showToast(error.message, 'red'); return; }
+  showToast('Purchase deleted');
+  loadDashboard();
 }
 
 // ═══════════════════════════════════════════════

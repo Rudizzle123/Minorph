@@ -77,7 +77,8 @@ create table transactions (
   balance              numeric,
   category             text,
   is_internal_transfer boolean default false,
-  is_commission        boolean default false
+  is_commission        boolean default false,
+  category_override    boolean default false
 );
 alter table transactions enable row level security;
 create policy "Users see own transactions" on transactions
@@ -111,6 +112,19 @@ create table goals (
 );
 alter table goals enable row level security;
 create policy "Users see own goals" on goals
+  for all using (auth.uid() = user_id);
+
+create table bills (
+  id       uuid primary key default gen_random_uuid(),
+  user_id  uuid references auth.users not null,
+  name     text not null,
+  amount   numeric not null,
+  cycle    text default 'monthly',
+  due_day  int,
+  icon     text
+);
+alter table bills enable row level security;
+create policy "Users see own bills" on bills
   for all using (auth.uid() = user_id);
 ```
 
@@ -221,6 +235,9 @@ Same columns as Revolut Current. Mostly Gross Interest (daily) + Deposit/Withdra
 - Date format: `01 Apr 26` (same as Lloyds, reuses `parseLloydsDate`)
 - If `[parseAmex] parsed 0 transactions`, raw text is dumped to console for debugging
 
+### Duplicate statement guard
+Before inserting a new statement, `startParse` queries `statements` for a row matching `account_id` + `period_end`. If found, aborts with a toast and returns early — no DB writes occur.
+
 ---
 
 ## Categorisation
@@ -235,6 +252,9 @@ Priority order (first match wins):
 6. Pattern rules (subscriptions, CS2, bills, groceries by merchant name)
 7. Type fallbacks — FPI/BGC/DEP/PAY → income, DD/SO → bills, DEB → spending
 
+### Manual override
+User can tap any transaction to change its category. Saves `category` + sets `category_override = true`. Override transactions show a purple "edited" pill. Override is permanent until changed again.
+
 ### Key constants in index.html
 ```js
 const RENT_AND_BILLS_ACC_NUM = '48939060';
@@ -245,13 +265,29 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 
 ---
 
+## Transaction icons (`getCategoryIcon`)
+Category takes priority, then description patterns. Major coverage:
+- **Food delivery**: Deliveroo, Uber Eats, Just Eat → 🛵
+- **Supermarkets**: Aldi, Lidl, Tesco, Sainsbury's, Asda, Morrisons, Waitrose, Co-op, M&S Food, Ocado, Iceland → 🛒
+- **Dining**: McDonald's, KFC, Nando's, Wagamama, Pizza, restaurant, cafe, coffee, Greggs, Pret, farm shops → 🍽️
+- **Fuel**: BP, Shell, Esso, service station → ⛽
+- **Shopping**: Amazon → 📦, Argos/Currys/John Lewis/Next/Primark/H&M/ASOS → 🛍️, Smyths/toys → 🧸
+- **Transport**: Uber/Bolt/taxi → 🚕, Trainline/TfL/rail → 🚂, parking → 🅿️
+- **Travel**: flights, hotels, Airbnb → ✈️
+- **Health**: hospital, pharmacy, dentist, NHS → 🏥
+- **Gaming**: Steam, PlayStation, Xbox → 🎮
+- **Utilities**: energy suppliers → 💡, water → 💧, broadband → 🌐
+- **Insurance** → 🛡️, **rent/council tax** → 🏠, **phone/mobile** → 📱
+- **Fallback**: 💳 (replaces old white dot)
+
+---
+
 ## Known issues / watch points
 
 - **Amex parser** — speculative, untested until 28 May 2026 statement
 - **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside the known set, that row will be skipped
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
-- **No duplicate statement guard** — re-uploading a PDF will silently insert duplicate transactions
 
 ---
 
@@ -259,8 +295,6 @@ const OWN_ACCOUNT_MARKERS    = ['R LANGFORD','RUDI LANGFORD','LANGFORD R','LANGF
 
 - [ ] Test Amex Gold parser on 28 May 2026 statement
 - [ ] Update Amex goal `current_amount` once Amex parser verified
-- [ ] Add duplicate statement check (idempotent re-upload)
-- [ ] Manual category override (tap transaction → change category)
 - [ ] Grocery spend tracker — £X of £300 budget used this month
 - [ ] Search/filter transactions by description
 - [ ] Export transactions as CSV
