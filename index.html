@@ -356,49 +356,98 @@ a { color: inherit; text-decoration: none; }
 ══════════════════════════════════════════════════════════ */
 .pulse-hero {
   margin: 4px 20px 20px;
-  padding: 22px 22px 18px;
-  border-radius: 22px;
-  background: var(--card-grad);
+  padding: 24px 24px 20px;
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(155,93,229,0.18) 0%, transparent 55%),
+    radial-gradient(120% 100% at 100% 100%, rgba(45,198,83,0.14) 0%, transparent 55%),
+    linear-gradient(135deg, #1a0f2e 0%, #0d1a14 100%);
   border: 1px solid var(--purple-border);
   position: relative;
   overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.02) inset,
+    0 20px 50px -25px rgba(155,93,229,0.4);
 }
 
 .pulse-hero::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(155,93,229,0.10) 0%, rgba(45,198,83,0.08) 100%);
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(199,125,255,0.5), transparent);
   pointer-events: none;
 }
 
 .pulse-hero > * { position: relative; z-index: 1; }
 
 .pulse-hero-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.24em;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.pulse-hero-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(155,93,229,0.18), transparent);
 }
 
 .pulse-hero-amount {
   font-family: var(--font-head);
-  font-size: 2.6rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-size: 2.85rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
   line-height: 1;
-  background: linear-gradient(135deg, var(--text) 0%, var(--purple-light) 60%, var(--green-light) 100%);
+  color: var(--text);
+  background: linear-gradient(180deg, #ffffff 0%, #e8e2ff 50%, #b39ddb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  text-shadow: 0 0 30px rgba(199,125,255,0.08);
 }
 
 .pulse-hero-meta {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-weight: 400;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+
+.nw-meta-date {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.nw-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nw-meta-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.66rem;
   color: var(--text-dim);
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .pulse-grid {
@@ -2441,17 +2490,23 @@ function computeNetWorth(snapshots, anchorYM) {
         nw += savBal;
         parts.push(`Savings ${formatGBP(savBal)}`);
         document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
-        document.getElementById('pulse-net-worth-meta').textContent =
-          (snapshotMonth ? `As of ${formatSnapshotMonth(snapshotMonth)} · ` : '') + parts.join(' · ');
+        document.getElementById('pulse-net-worth-meta').innerHTML = buildNetWorthMeta(snapshotMonth, parts);
         renderNwSparkline(snapshots, savBal);
       });
   } else {
     document.getElementById('pulse-net-worth').textContent = formatGBP(nw);
-    document.getElementById('pulse-net-worth-meta').textContent =
-      snapshotMonth ? `As of ${formatSnapshotMonth(snapshotMonth)} · ` + parts.join(' · ')
-                    : 'No snapshot yet — tap "Add / Edit"';
+    document.getElementById('pulse-net-worth-meta').innerHTML =
+      snapshotMonth ? buildNetWorthMeta(snapshotMonth, parts)
+                    : '<span style="opacity:0.7">No snapshot yet — tap "Add / Edit"</span>';
     renderNwSparkline(snapshots, 0);
   }
+}
+
+function buildNetWorthMeta(snapshotMonth, parts) {
+  const dateLine = snapshotMonth
+    ? `<div class="nw-meta-date">As of ${formatSnapshotMonth(snapshotMonth)}</div>` : '';
+  const chips = parts.map(p => `<span class="nw-meta-chip">${p}</span>`).join('');
+  return `${dateLine}<div class="nw-meta-chips">${chips}</div>`;
 }
 
 // Snapshot month can come back from PG as 'YYYY-MM-DD' or already 'YYYY-MM'.
@@ -2599,11 +2654,14 @@ function computeSavingsRate(txns, anchorYM) {
 function computeInvestedRate(txns, cs2Invest, snapshots, anchorYM) {
   if (!txns) return;
 
-  // Fidelity outflows: FPO/TFR/DD transactions whose description matches Fidelity
+  // Fidelity outflows: FPO/TFR/DD transactions whose description matches Fidelity.
+  // Codes seen on Lloyds statements:
+  //   FSTL PRIMARY TRUST = Fidelity SIPP (pension)
+  //   FASL PRIM CLIENT B = Fidelity S&S ISA
   const fidelityByMonth = {};
   txns.forEach(t => {
     const desc = (t.description || '').toUpperCase();
-    if (!/FIDELITY|FIL\s*INV|FIL\s*LIFE|FIL\s*SIPP|FIL\s*ISA/.test(desc)) return;
+    if (!/FIDELITY|FIL\s*INV|FIL\s*LIFE|FIL\s*SIPP|FIL\s*ISA|FSTL\s*PRIMARY\s*TRUST|FASL\s*PRIM\s*CLIENT/.test(desc)) return;
     const out = parseFloat(t.amount_out) || 0;
     if (out <= 0) return;
     const m = (t.date || '').slice(0,7);
