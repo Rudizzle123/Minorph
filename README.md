@@ -1,9 +1,20 @@
 # Minorph — Personal Finance Tracker
 
 ## What is this?
-Minorph is a personal finance tracking web app for Rudi Langford. It ingests monthly PDF bank statements, parses transactions client-side, detects subscriptions, tracks goals (Amex points target + savings), and displays everything in a clean per-account dashboard.
+Minorph is a **personal CFO / monthly wealth-review tool** for Rudi Langford. It ingests monthly PDF bank statements, parses transactions client-side, and surfaces:
+
+- **Net worth** (investments + savings, not current accounts)
+- **Net pay** rolling 6-month average (to smooth bonus-month variance)
+- **Savings rate** and **invested rate** per month
+- **Discretionary spend** vs 6-month baseline
+- **Wealth snapshots** (manual monthly input of SIPP / ISA / CS2 valuations + contributions)
+- **CS2 investment log** (manual purchase entries)
+- **Goals tracking** (Amex Gold 40k point bonus, savings)
+- **Subscriptions & Bills**
 
 Cross-device sync via Supabase. Hosted on Cloudflare Pages. No open banking APIs — everything is manual monthly PDF uploads.
+
+**The app's job is not budgeting.** It's once-a-month wealth review and tax/optimisation visibility (long-term focus: keep ANI under £100k via aggressive SIPP contributions).
 
 ---
 
@@ -22,14 +33,19 @@ Cross-device sync via Supabase. Hosted on Cloudflare Pages. No open banking APIs
 ---
 
 ## Accounts
-| Account | Bank | Acc Number | Type |
-|---|---|---|---|
-| Main Current | Lloyds | 39741868 | current |
-| Rent & Bills | Lloyds | 48939060 | current |
-| Platinum Credit | Lloyds | — | credit |
-| Revolut Current | Revolut | 82501043 | travel |
-| Revolut Savings | Revolut | 82501043 | savings |
-| Amex Gold | Amex | — | credit |
+| Account | Bank | Acc Number | Type | Counts toward Net Worth? |
+|---|---|---|---|---|
+| Main Current | Lloyds | 39741868 | current | No |
+| Rent & Bills | Lloyds | 48939060 | current | No |
+| Platinum Credit | Lloyds | — | credit | No |
+| Revolut Current | Revolut | 82501043 | travel | No |
+| Revolut Savings | Revolut | 82501043 | savings | **Yes** |
+| Amex Gold | Amex | — | credit | No |
+| Fidelity SIPP | Fidelity | — | wealth (manual) | **Yes** |
+| Fidelity S&S ISA | Fidelity | — | wealth (manual) | **Yes** |
+| CS2 Portfolio | Steam | — | wealth (manual) | **Yes** |
+
+Wealth accounts (SIPP / ISA / CS2) are not in the `accounts` table — they live as monthly rows in `wealth_snapshots`.
 
 ---
 
@@ -126,6 +142,35 @@ create table bills (
 alter table bills enable row level security;
 create policy "Users see own bills" on bills
   for all using (auth.uid() = user_id);
+
+-- Added Session 9: monthly snapshots of investment / savings account values
+create table wealth_snapshots (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid references auth.users not null,
+  month             date not null,
+  sipp_balance      numeric default 0,
+  sipp_contrib_cash numeric default 0,
+  isa_balance       numeric default 0,
+  isa_contrib_cash  numeric default 0,
+  cs2_balance       numeric default 0,
+  unique (user_id, month)
+);
+alter table wealth_snapshots enable row level security;
+create policy "Users see own snapshots" on wealth_snapshots
+  for all using (auth.uid() = user_id);
+
+-- Added Session 9: log of manual investment purchases (currently just CS2)
+create table manual_investments (
+  id      uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  type    text not null,
+  date    date not null,
+  amount  numeric not null,
+  notes   text
+);
+alter table manual_investments enable row level security;
+create policy "Users see own investments" on manual_investments
+  for all using (auth.uid() = user_id);
 ```
 
 ### Seed data (replace UUID with your user ID from Auth → Users)
@@ -171,10 +216,47 @@ WHERE id = (
   ORDER BY uploaded_at DESC LIMIT 1
 );
 
--- Nuke everything:
+-- Nuke everything (parsed data only — wealth snapshots and goals untouched):
 DELETE FROM transactions;
 DELETE FROM statements;
 ```
+
+---
+
+## Pulse Dashboard (Session 9 build)
+
+The dashboard is built around five sections, top-to-bottom:
+
+### 1. Net Worth hero
+Big gradient number (white → lilac). Below: date chip + breakdown chips (`SIPP £X`, `ISA £X`, `CS2 £X`, `Savings £X`). Sparkline canvas plots net worth over all snapshot months.
+
+**Computation:**
+- SIPP / ISA / CS2 → latest `wealth_snapshots` row
+- Revolut Savings → latest `statements.closing_balance` for the Revolut Savings account
+- Net worth = sum of all four
+
+### 2. Pulse grid (4 tiles)
+- **Net Pay (Month)** = Infinity Renewables FPI total for the anchor month. Sub = 6-mo rolling avg.
+- **Savings Rate** = (Revolut Savings deposits this month) / (net pay this month). Sub = total saved £ + 6-mo avg rate.
+- **Invested (Month)** = (Fidelity outflows from Lloyds Main Current detected by description: `FSTL PRIMARY TRUST`, `FASL PRIM CLIENT B`, `FIDELITY`, `FIL SIPP`, `FIL ISA`, etc) + (manual CS2 purchases for the month). Sub = 6-mo avg.
+- **Discretionary** = total `amount_out` for the month, minus internal transfers, commission, bills, rent, energy, subscriptions, interest, groceries. Sub = 6-mo avg + % delta (red if up, green if down).
+
+### 3. Wealth Snapshot section
+Card showing latest snapshot row. **＋ Add / Edit** button opens modal; selecting a month auto-prefills if a snapshot exists for that month (becomes an edit). Upsert key: `(user_id, month)`.
+
+### 4. CS2 Investments section
+List of purchases (latest 6 visible). **＋ Log purchase** button adds a new row. × button on each row deletes (with confirm).
+
+### 5. Net Pay month-on-month chart
+Flame-palette bar chart (orange `#ff8a3d` / light `#ffb267`). Fixed 140px canvas height. Total + monthly avg legend below.
+
+### Dashboard month anchoring
+Priority chain for the "current month" Pulse uses:
+1. Latest month with any Infinity FPI transaction
+2. Latest statement period_end month
+3. Wall-clock current month
+
+This prevents the dashboard showing all-zero numbers in the gap between months when no new statement has been uploaded.
 
 ---
 
@@ -235,6 +317,15 @@ Same columns as Revolut Current. Mostly Gross Interest (daily) + Deposit/Withdra
 - Date format: `01 Apr 26` (same as Lloyds, reuses `parseLloydsDate`)
 - If `[parseAmex] parsed 0 transactions`, raw text is dumped to console for debugging
 
+### Fidelity (not built yet)
+Quarterly statements covering ISA + SIPP + Cash Management in one PDF. Known structure:
+- Per-account valuation: balance + holdings (fund name, quantity, price, value)
+- Per-account statement: dated rows of credits (`Money paid in`, dividends, interest distributions) and debits (`Investment in X`, fees)
+- Date format: `DD.MM.YY` (e.g. `2.1.26`)
+- Account masks: ISA `******0990`, SIPP `******8515`, Cash `******9460`
+
+Build when Rudi has at least 2-3 historical statements to validate against.
+
 ### Duplicate statement guard
 Before inserting a new statement, `startParse` queries `statements` for a row matching `account_id` + `period_end`. If found, aborts with a toast and returns early — no DB writes occur.
 
@@ -247,13 +338,22 @@ Priority order (first match wins):
 1. Grocery reimbursement — TFR/FPO out of Rent & Bills ≤ £300 referencing Main Current → `groceries`
 2. Grocery reimbursement — TFR/FPI into Main Current ≤ £300 referencing Rent & Bills → `groceries`
 3. Internal transfer — catches Revolut `To/From GBP Savings` by description first, then TFR/FPO/FPI referencing own account numbers or R LANGFORD → `transfer`, excluded from spend
-4. Commission — FPI from `INFINITY RENEWABLE` → `commission`, `is_commission = true`
+4. Commission — FPI from `INFINITY RENEWABLE` → `commission`, `is_commission = true` (kept as a flag, but displayed as "Net Pay" throughout the Pulse dashboard)
 5. Revolut interest — type `INT` → `interest`
 6. Pattern rules (subscriptions, CS2, bills, groceries by merchant name)
 7. Type fallbacks — FPI/BGC/DEP/PAY → income, DD/SO → bills, DEB → spending
 
 ### Manual override
 User can tap any transaction to change its category. Saves `category` + sets `category_override = true`. Override transactions show a purple "edited" pill. Override is permanent until changed again.
+
+### Fidelity contribution detection (used in Invested tile)
+Pattern matched against description, uppercased:
+```
+FIDELITY | FIL\s*INV | FIL\s*LIFE | FIL\s*SIPP | FIL\s*ISA | FSTL\s*PRIMARY\s*TRUST | FASL\s*PRIM\s*CLIENT
+```
+Verified on real Lloyds Main Current statements:
+- `FSTL PRIMARY TRUST` (FPO type) → Fidelity SIPP
+- `FASL PRIM CLIENT B` (FPO type) → Fidelity S&S ISA
 
 ### Key constants in index.html
 ```js
@@ -278,23 +378,27 @@ Category takes priority, then description patterns. Major coverage:
 - **Gaming**: Steam, PlayStation, Xbox → 🎮
 - **Utilities**: energy suppliers → 💡, water → 💧, broadband → 🌐
 - **Insurance** → 🛡️, **rent/council tax** → 🏠, **phone/mobile** → 📱
-- **Fallback**: 💳 (replaces old white dot)
+- **Fallback**: 💳
 
 ---
 
 ## Known issues / watch points
 
 - **Amex parser** — speculative, untested until 28 May 2026 statement
+- **Fidelity parser** — not built yet; manual snapshot entry is the stopgap
 - **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside the known set, that row will be skipped
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
+- **Sparkline early-state** — with only 1 snapshot, sparkline renders a flat dot; will populate as more snapshots accumulate
 
 ---
 
-## Things still to do
+## Things still to do (priority order)
 
-- [ ] Test Amex Gold parser on 28 May 2026 statement
-- [ ] Update Amex goal `current_amount` once Amex parser verified
-- [ ] Grocery spend tracker — £X of £300 budget used this month
-- [ ] Search/filter transactions by description
-- [ ] Export transactions as CSV
+1. **Pension tracker / ANI estimate** — tax-year SIPP contribs grossed up vs £100k threshold
+2. **Spend leak finder** — category breakdown screen with % deltas, top merchants, subscription audit
+3. **Wealth long-game chart** — net worth line by account type
+4. **Fidelity PDF parser** (when historical statements available)
+5. **Amex Gold parser** test (28 May 2026)
+6. **Search/filter transactions by description**
+7. **Export transactions as CSV**

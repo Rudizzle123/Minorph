@@ -531,6 +531,117 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
 }
 
+/* Pension / ANI tracker card */
+.pension-card {
+  border-radius: 18px;
+  padding: 16px 18px 18px;
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.pension-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(155,93,229,0.06) 0%, rgba(45,198,83,0.04) 100%);
+  pointer-events: none;
+}
+.pension-card > * { position: relative; z-index: 1; }
+
+.pension-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.pension-row-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.pension-row-val {
+  font-family: var(--font-head);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.pension-ani-hero {
+  margin: 10px 0 14px;
+  padding: 14px 14px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.pension-ani-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.pension-ani-val {
+  font-family: var(--font-head);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.pension-ani-val.ani-safe   { color: var(--green-light); }
+.pension-ani-val.ani-warn   { color: #ffb267; }
+.pension-ani-val.ani-danger { color: var(--red); }
+.pension-ani-sub {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.pension-bar-wrap {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  overflow: visible;
+  margin: 6px 0 8px;
+}
+.pension-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--green) 0%, var(--green-light) 100%);
+  transition: width 0.4s ease;
+}
+.pension-bar-fill.over {
+  background: linear-gradient(90deg, #ffb267 0%, var(--red) 100%);
+}
+.pension-bar-threshold {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--red);
+  box-shadow: 0 0 6px rgba(255,107,107,0.5);
+}
+.pension-bar-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.58rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.pension-empty {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
 /* CS2 log row */
 .cs2-row {
   display: flex;
@@ -1787,6 +1898,15 @@ a { color: inherit; text-decoration: none; }
       </div>
     </div>
 
+    <!-- Pension / ANI Tracker -->
+    <div class="section-title-row">
+      <span class="section-title-text">Pension &amp; ANI</span>
+      <button class="section-action" onclick="openSettingsModal()">⚙ Settings</button>
+    </div>
+    <div id="dash-pension-summary">
+      <div class="loading-wrap"><div class="spinner"></div><span>Loading…</span></div>
+    </div>
+
     <!-- Wealth Snapshot Input -->
     <div class="section-title-row">
       <span class="section-title-text">Wealth Snapshot</span>
@@ -2157,6 +2277,26 @@ a { color: inherit; text-decoration: none; }
   </div>
 </div>
 
+<!-- ════ SETTINGS MODAL ════ -->
+<div class="modal-backdrop hidden" id="settings-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title">Settings</div>
+    <div class="modal-sub">Used to estimate Adjusted Net Income</div>
+    <div class="modal-field">
+      <div class="modal-label">Estimated annual gross income (£)</div>
+      <input class="modal-input" id="settings-gross-input" type="number" step="100" min="0" placeholder="e.g. 130000">
+      <div class="modal-label" style="margin-top:6px;color:var(--muted);text-transform:none;letter-spacing:0">
+        Base salary + expected bonuses. Update once a year (or whenever your estimate changes).
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-save-btn" onclick="saveSettings()">Save</button>
+      <button class="modal-close-btn" onclick="closeSettingsModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ TOAST ════ -->
 <div class="toast" id="toast"></div>
 
@@ -2446,12 +2586,20 @@ async function loadDashboard() {
     .eq('type', 'cs2')
     .order('date', { ascending: false });
 
+  // ── Load user settings (annual gross income for ANI estimate) ───────────
+  const { data: settings } = await sb
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
   // Compute everything in sequence
   computeNetWorth(snapshots, anchorYM);
   computeNetPay(txns, anchorYM);
   computeSavingsRate(txns, anchorYM);
   computeInvestedRate(txns, cs2Invest, snapshots, anchorYM);
   computeDiscretionary(txns, anchorYM);
+  computePension(txns, settings);
   renderSnapshotSummary(snapshots);
   renderCs2Summary(cs2Invest);
   loadNetPayChart(txns);
@@ -2726,6 +2874,179 @@ function computeDiscretionary(txns, anchorYM) {
   document.getElementById('pulse-discretionary').textContent = formatGBP(thisD);
   document.getElementById('pulse-discretionary-sub').innerHTML =
     `6-mo avg ${formatGBP(avg)}${diffStr}`;
+}
+
+// ───────────────────────────────────────────────
+// PENSION / ANI TRACKER
+// Tax year: 6 Apr → 5 Apr. SIPP cash × 1.25 = grossed (basic-rate relief).
+// ANI estimate = annual_gross_income − grossed YTD.
+// Threshold: £100,000 (personal allowance taper begins).
+// ───────────────────────────────────────────────
+function computePension(txns, settings) {
+  const ANI_THRESHOLD = 100000;
+  const GROSS_MULT    = 1.25;
+
+  // ── Determine current UK tax year (6 Apr → 5 Apr) ────────────────────
+  const now = new Date();
+  const y   = now.getFullYear();
+  // If we're before 6 Apr, the tax year started last calendar year
+  const beforeApr6 = (now.getMonth() < 3) || (now.getMonth() === 3 && now.getDate() < 6);
+  const tyStartYear = beforeApr6 ? y - 1 : y;
+  const tyStart = new Date(tyStartYear, 3, 6);            // 6 Apr
+  const tyEnd   = new Date(tyStartYear + 1, 3, 6);        // 6 Apr next year (exclusive)
+  const tyLabel = `${tyStartYear}/${String(tyStartYear + 1).slice(-2)}`;
+
+  // ── Sum FSTL PRIMARY TRUST FPO outflows within the tax year ──────────
+  let cashYTD = 0;
+  let count   = 0;
+  (txns || []).forEach(t => {
+    const desc = (t.description || '').toUpperCase();
+    if (!/FSTL\s*PRIMARY\s*TRUST/.test(desc)) return;
+    const out = parseFloat(t.amount_out) || 0;
+    if (out <= 0) return;
+    if (!t.date) return;
+    const d = new Date(t.date);
+    if (d < tyStart || d >= tyEnd) return;
+    cashYTD += out;
+    count++;
+  });
+
+  const grossedYTD = cashYTD * GROSS_MULT;
+  const gross      = settings && settings.annual_gross_income
+    ? parseFloat(settings.annual_gross_income) : 0;
+  const aniEst     = gross > 0 ? gross - grossedYTD : null;
+
+  console.log('[pension]', {
+    taxYear: tyLabel,
+    cashYTD: cashYTD.toFixed(2),
+    grossedYTD: grossedYTD.toFixed(2),
+    contributionCount: count,
+    annualGrossIncome: gross,
+    aniEstimate: aniEst === null ? null : aniEst.toFixed(2),
+  });
+
+  renderPensionCard({
+    hasGross: gross > 0,
+    gross, cashYTD, grossedYTD, aniEst,
+    tyLabel,
+    threshold: ANI_THRESHOLD,
+    contributionCount: count,
+  });
+}
+
+function renderPensionCard(p) {
+  const c = document.getElementById('dash-pension-summary');
+  if (!c) return;
+
+  // Empty / setup state — no gross income yet
+  if (!p.hasGross) {
+    c.innerHTML = `
+      <div class="pension-card">
+        <div class="pension-empty">
+          To estimate Adjusted Net Income, set your <strong>annual gross income</strong> in Settings.
+          We'll combine it with your SIPP contributions (auto-detected from Lloyds FSTL PRIMARY TRUST)
+          and show how close you are to the £100k threshold.
+          <br><br>
+          Tax year ${p.tyLabel} · SIPP cash so far: <strong>${formatGBP(p.cashYTD)}</strong>
+          (grossed ${formatGBP(p.grossedYTD)})
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Bar shows ANI vs threshold. 100% = at £100k. Over 100% = clipped + danger style.
+  const ratio   = p.aniEst / p.threshold;
+  const pct     = Math.max(0, Math.min(100, ratio * 100));
+  const over    = p.aniEst > p.threshold;
+  const headroom = p.threshold - p.aniEst;
+
+  // ANI colour band
+  let aniCls = 'ani-safe';
+  let statusMsg;
+  if (over) {
+    aniCls = 'ani-danger';
+    statusMsg = `Over £100k by ${formatGBP(Math.abs(headroom))} — taper zone`;
+  } else if (headroom < 5000) {
+    aniCls = 'ani-warn';
+    statusMsg = `${formatGBP(headroom)} headroom — close to taper`;
+  } else {
+    statusMsg = `${formatGBP(headroom)} below the £100k threshold`;
+  }
+
+  // Bar scale spans 0 → £150k so threshold sits at 100/150 ≈ 66.7%
+  const BAR_MAX = 150000;
+  const fillPct = Math.max(0, Math.min(100, (p.aniEst / BAR_MAX) * 100));
+  const thresholdPct = (p.threshold / BAR_MAX) * 100;
+
+  c.innerHTML = `
+    <div class="pension-card">
+      <div class="pension-ani-hero">
+        <div class="pension-ani-label">Estimated ANI · Tax Year ${p.tyLabel}</div>
+        <div class="pension-ani-val ${aniCls}">${formatGBP(p.aniEst)}</div>
+        <div class="pension-ani-sub">${statusMsg}</div>
+        <div class="pension-bar-wrap" style="margin-top:12px">
+          <div class="pension-bar-fill ${over ? 'over' : ''}" style="width:${fillPct}%"></div>
+          <div class="pension-bar-threshold" style="left:${thresholdPct}%"></div>
+        </div>
+        <div class="pension-bar-scale">
+          <span>£0</span>
+          <span>£100k threshold</span>
+          <span>£150k</span>
+        </div>
+      </div>
+
+      <div class="pension-row">
+        <span class="pension-row-label">Annual gross income</span>
+        <span class="pension-row-val">${formatGBP(p.gross)}</span>
+      </div>
+      <div class="pension-row">
+        <span class="pension-row-label">SIPP cash YTD</span>
+        <span class="pension-row-val">${formatGBP(p.cashYTD)}</span>
+      </div>
+      <div class="pension-row">
+        <span class="pension-row-label">Grossed (×1.25)</span>
+        <span class="pension-row-val" style="color:var(--green-light)">${formatGBP(p.grossedYTD)}</span>
+      </div>
+      <div class="pension-row" style="margin-bottom:0">
+        <span class="pension-row-label">Contributions detected</span>
+        <span class="pension-row-val">${p.contributionCount}</span>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS MODAL (annual gross income for ANI)
+// ═══════════════════════════════════════════════
+async function openSettingsModal() {
+  const { data } = await sb
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+  document.getElementById('settings-gross-input').value =
+    (data && data.annual_gross_income) ? data.annual_gross_income : '';
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+async function saveSettings() {
+  const gross = parseFloat(document.getElementById('settings-gross-input').value);
+  if (isNaN(gross) || gross < 0) { showToast('Enter a valid gross income', 'red'); return; }
+  const { error } = await sb
+    .from('user_settings')
+    .upsert({
+      user_id: currentUser.id,
+      annual_gross_income: gross,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  if (error) { showToast(error.message, 'red'); return; }
+  showToast('Settings saved');
+  closeSettingsModal();
+  loadDashboard();
 }
 
 // ───────────────────────────────────────────────
