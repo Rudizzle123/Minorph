@@ -642,6 +642,122 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.5;
 }
 
+/* Where It Went — spend breakdown view */
+.spend-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 20px;
+  margin-bottom: 16px;
+}
+.spend-summary-tile {
+  border-radius: 14px;
+  padding: 12px 14px 11px;
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+}
+.spend-summary-label {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.spend-summary-val {
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.spend-summary-sub {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 4px;
+  font-weight: 500;
+}
+.spend-summary-sub .trend-up   { color: var(--green-light); }
+.spend-summary-sub .trend-down { color: var(--red); }
+
+.spend-section-title {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  padding: 0 20px;
+  margin: 4px 0 10px;
+  font-weight: 600;
+}
+
+.spend-category-list {
+  padding: 0 20px 16px;
+}
+.spend-cat-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.spend-cat-row:last-child { border-bottom: none; }
+.spend-cat-icon {
+  font-size: 1.05rem;
+  text-align: center;
+}
+.spend-cat-main { min-width: 0; }
+.spend-cat-name {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
+  text-transform: capitalize;
+  margin-bottom: 4px;
+}
+.spend-cat-bar {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  overflow: hidden;
+  position: relative;
+}
+.spend-cat-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--purple) 0%, var(--purple-light) 100%);
+}
+.spend-cat-right {
+  text-align: right;
+  white-space: nowrap;
+}
+.spend-cat-val {
+  font-family: var(--font-head);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.spend-cat-delta {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 3px;
+  font-weight: 500;
+}
+.spend-cat-delta.trend-up   { color: var(--green-light); }
+.spend-cat-delta.trend-down { color: var(--red); }
+
+.spend-empty-card {
+  margin: 0 20px;
+  padding: 22px 20px;
+  border-radius: 16px;
+  background: var(--card-grad);
+  border: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 /* CS2 log row */
 .cs2-row {
   display: flex;
@@ -1952,23 +2068,43 @@ a { color: inherit; text-decoration: none; }
     <div class="page-title">Transactions</div>
     <div class="page-sub" id="txn-page-sub">All accounts</div>
 
-    <div class="account-select-wrap">
-      <select class="account-select" id="txn-account-filter" onchange="loadTransactions()">
-        <option value="all">All Accounts</option>
-      </select>
+    <div class="seg-toggle">
+      <button class="seg-btn active" onclick="switchTxnTab('all', this)">All transactions</button>
+      <button class="seg-btn" onclick="switchTxnTab('spend', this)">Where it went</button>
     </div>
 
-    <div class="filter-bar" id="txn-filter-bar">
-      <button class="filter-chip active" data-filter="all" onclick="setTxnFilter(this)">All</button>
-      <button class="filter-chip" data-filter="subscription" onclick="setTxnFilter(this)">Subscriptions</button>
-      <button class="filter-chip" data-filter="cs2" onclick="setTxnFilter(this)">CS2</button>
-      <button class="filter-chip" data-filter="bills" onclick="setTxnFilter(this)">Bills</button>
-      <button class="filter-chip" data-filter="income" onclick="setTxnFilter(this)">Income</button>
-      <button class="filter-chip" data-filter="transfer" onclick="setTxnFilter(this)">Transfers</button>
+    <!-- ALL TRANSACTIONS PANEL -->
+    <div id="txn-all-panel">
+      <div class="account-select-wrap">
+        <select class="account-select" id="txn-account-filter" onchange="loadTransactions()">
+          <option value="all">All Accounts</option>
+        </select>
+      </div>
+
+      <div class="filter-bar" id="txn-filter-bar">
+        <button class="filter-chip active" data-filter="all" onclick="setTxnFilter(this)">All</button>
+        <button class="filter-chip" data-filter="subscription" onclick="setTxnFilter(this)">Subscriptions</button>
+        <button class="filter-chip" data-filter="cs2" onclick="setTxnFilter(this)">CS2</button>
+        <button class="filter-chip" data-filter="bills" onclick="setTxnFilter(this)">Bills</button>
+        <button class="filter-chip" data-filter="income" onclick="setTxnFilter(this)">Income</button>
+        <button class="filter-chip" data-filter="transfer" onclick="setTxnFilter(this)">Transfers</button>
+      </div>
+
+      <div id="txn-list-wrap">
+        <div class="loading-wrap"><div class="spinner"></div><span>Loading transactions…</span></div>
+      </div>
     </div>
 
-    <div id="txn-list-wrap">
-      <div class="loading-wrap"><div class="spinner"></div><span>Loading transactions…</span></div>
+    <!-- WHERE IT WENT PANEL -->
+    <div id="txn-spend-panel" style="display:none">
+      <div class="account-select-wrap">
+        <select class="account-select" id="spend-month-picker" onchange="renderSpendView()">
+          <option value="">Loading months…</option>
+        </select>
+      </div>
+      <div id="spend-view-wrap">
+        <div class="loading-wrap"><div class="spinner"></div><span>Crunching the month…</span></div>
+      </div>
     </div>
   </div>
 
@@ -3354,6 +3490,248 @@ async function deleteCs2(id) {
 // ═══════════════════════════════════════════════
 // TRANSACTIONS
 // ═══════════════════════════════════════════════
+
+// Toggle between "All transactions" list and "Where it went" breakdown
+function switchTxnTab(tab, btn) {
+  document.querySelectorAll('#screen-transactions .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('txn-all-panel').style.display   = tab === 'all'   ? '' : 'none';
+  document.getElementById('txn-spend-panel').style.display = tab === 'spend' ? '' : 'none';
+  if (tab === 'spend') loadSpendData();
+}
+
+// Spend view caches all txns the first time the user opens it
+let spendCache = null;
+
+async function loadSpendData() {
+  const wrap = document.getElementById('spend-view-wrap');
+  wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>Crunching the month…</span></div>';
+
+  // Get all user accounts then pull every transaction (no limit — we need full history)
+  const accountIds = userAccounts.map(a => a.id);
+  if (accountIds.length === 0) {
+    wrap.innerHTML = '<div class="spend-empty-card">No accounts yet. Upload a statement first.</div>';
+    return;
+  }
+
+  const { data: txns, error } = await sb
+    .from('transactions')
+    .select('account_id, date, description, type, amount_in, amount_out, is_internal_transfer, is_commission, category')
+    .in('account_id', accountIds)
+    .order('date', { ascending: false });
+
+  if (error) {
+    wrap.innerHTML = `<div class="spend-empty-card" style="color:var(--red)">${error.message}</div>`;
+    return;
+  }
+
+  spendCache = txns || [];
+
+  // Populate month picker — months that have any Infinity FPI inflow
+  const fpiMonths = new Set();
+  spendCache.forEach(t => {
+    if (!t.date) return;
+    const desc = (t.description || '').toUpperCase();
+    if (t.is_commission || /INFINITY\s*RENEW/.test(desc)) {
+      fpiMonths.add(t.date.slice(0,7));
+    }
+  });
+  const months = Array.from(fpiMonths).sort().reverse();
+
+  const picker = document.getElementById('spend-month-picker');
+  if (months.length === 0) {
+    picker.innerHTML = '<option value="">No paid months yet</option>';
+    wrap.innerHTML = `
+      <div class="spend-empty-card">
+        No months with Net Pay data yet. Upload a Lloyds Main Current statement that includes
+        an <strong>INFINITY RENEWABLE</strong> deposit and this view will populate.
+      </div>`;
+    return;
+  }
+  picker.innerHTML = months.map(m =>
+    `<option value="${m}">${formatSnapshotMonth(m)}</option>`).join('');
+  picker.value = months[0];
+
+  renderSpendView();
+}
+
+function renderSpendView() {
+  const wrap = document.getElementById('spend-view-wrap');
+  const month = document.getElementById('spend-month-picker').value;
+  if (!month || !spendCache) return;
+
+  // Excluded categories — these aren't "spend"
+  const EXCLUDE = new Set(['transfer', 'commission', 'interest', 'income']);
+
+  // ── Aggregate this month's outflows by category ───────────────────────
+  const catMonth = {};       // { category: sum }
+  const merchantMonth = {};  // { description: sum }
+  let totalSpend = 0;
+
+  spendCache.forEach(t => {
+    if (t.is_internal_transfer) return;
+    if (t.is_commission) return;
+    if (!t.date || !t.date.startsWith(month)) return;
+    const out = parseFloat(t.amount_out) || 0;
+    if (out <= 0) return;
+    const cat = t.category || 'other';
+    if (EXCLUDE.has(cat)) return;
+    catMonth[cat] = (catMonth[cat] || 0) + out;
+    const merchant = cleanMerchantName(t.description || '—');
+    merchantMonth[merchant] = (merchantMonth[merchant] || 0) + out;
+    totalSpend += out;
+  });
+
+  // ── 6-month rolling baseline for each category (months ending at this month, exclusive) ──
+  const allMonths = new Set();
+  const catByMonth = {};     // { month: { cat: sum } }
+  spendCache.forEach(t => {
+    if (t.is_internal_transfer) return;
+    if (t.is_commission) return;
+    if (!t.date) return;
+    const out = parseFloat(t.amount_out) || 0;
+    if (out <= 0) return;
+    const cat = t.category || 'other';
+    if (EXCLUDE.has(cat)) return;
+    const m = t.date.slice(0,7);
+    allMonths.add(m);
+    if (!catByMonth[m]) catByMonth[m] = {};
+    catByMonth[m][cat] = (catByMonth[m][cat] || 0) + out;
+  });
+  const sortedMonths = Array.from(allMonths).sort();
+  const monthIdx     = sortedMonths.indexOf(month);
+  const baselineMonths = monthIdx > 0
+    ? sortedMonths.slice(Math.max(0, monthIdx - 6), monthIdx)
+    : [];
+  const catAvg = {};
+  Object.keys(catMonth).forEach(cat => {
+    if (baselineMonths.length === 0) { catAvg[cat] = 0; return; }
+    const sum = baselineMonths.reduce((acc, m) => acc + ((catByMonth[m] || {})[cat] || 0), 0);
+    catAvg[cat] = sum / baselineMonths.length;
+  });
+
+  // ── 6-month total-spend baseline (for the headline tile) ──────────────
+  const totalByMonth = {};
+  Object.keys(catByMonth).forEach(m => {
+    totalByMonth[m] = Object.values(catByMonth[m]).reduce((a,b) => a+b, 0);
+  });
+  const totalBase = baselineMonths.length
+    ? baselineMonths.reduce((acc, m) => acc + (totalByMonth[m] || 0), 0) / baselineMonths.length
+    : 0;
+  const totalDelta = totalBase > 0 ? ((totalSpend - totalBase) / totalBase) * 100 : 0;
+
+  // ── Subscriptions monthly total (this month) ──────────────────────────
+  const subsTotal = catMonth['subscription'] || 0;
+
+  // ── Sort categories and merchants ─────────────────────────────────────
+  const catRows = Object.entries(catMonth)
+    .sort((a,b) => b[1] - a[1]);
+  const maxCat = catRows.length ? catRows[0][1] : 0;
+
+  const merchantRows = Object.entries(merchantMonth)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 10);
+
+  console.log('[spend]', {
+    month,
+    totalSpend: totalSpend.toFixed(2),
+    sixMoAvg: totalBase.toFixed(2),
+    categoryCount: catRows.length,
+    topCategory: catRows[0] ? catRows[0][0] : null,
+    baselineMonths,
+  });
+
+  if (totalSpend === 0) {
+    wrap.innerHTML = `
+      <div class="spend-empty-card">
+        No spend recorded for ${formatSnapshotMonth(month)}. Either no outflows landed,
+        or every outflow is classed as a transfer / income / interest.
+      </div>`;
+    return;
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────
+  const totalDeltaTxt = baselineMonths.length === 0 || !isFinite(totalDelta) ? '' :
+    ` <span class="${totalDelta > 5 ? 'trend-down' : (totalDelta < -5 ? 'trend-up' : '')}">${totalDelta > 0 ? '+' : ''}${totalDelta.toFixed(0)}%</span>`;
+
+  const catHtml = catRows.map(([cat, val]) => {
+    const pct      = (val / totalSpend) * 100;
+    const barPct   = maxCat > 0 ? (val / maxCat) * 100 : 0;
+    const avg      = catAvg[cat] || 0;
+    const delta    = avg > 0 ? ((val - avg) / avg) * 100 : 0;
+    const deltaCls = !isFinite(delta) || avg === 0 ? '' :
+      (delta > 5 ? 'trend-down' : (delta < -5 ? 'trend-up' : ''));
+    const deltaTxt = !isFinite(delta) || avg === 0 ? '6-mo new' :
+      `${delta > 0 ? '+' : ''}${delta.toFixed(0)}% vs 6-mo`;
+    return `
+      <div class="spend-cat-row">
+        <div class="spend-cat-icon">${getCategoryIcon(cat, '')}</div>
+        <div class="spend-cat-main">
+          <div class="spend-cat-name">${cat}</div>
+          <div class="spend-cat-bar"><div class="spend-cat-bar-fill" style="width:${barPct}%"></div></div>
+        </div>
+        <div class="spend-cat-right">
+          <div class="spend-cat-val">${formatGBP(val)}</div>
+          <div class="spend-cat-delta ${deltaCls}">${pct.toFixed(0)}% · ${deltaTxt}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const merchantHtml = merchantRows.map(([m, val]) => `
+    <div class="spend-cat-row">
+      <div class="spend-cat-icon">${getCategoryIcon('', m)}</div>
+      <div class="spend-cat-main">
+        <div class="spend-cat-name" style="text-transform:none">${escapeHtml(m)}</div>
+      </div>
+      <div class="spend-cat-right">
+        <div class="spend-cat-val">${formatGBP(val)}</div>
+      </div>
+    </div>`).join('');
+
+  wrap.innerHTML = `
+    <div class="spend-summary">
+      <div class="spend-summary-tile">
+        <div class="spend-summary-label">Total spend</div>
+        <div class="spend-summary-val">${formatGBP(totalSpend)}</div>
+        <div class="spend-summary-sub">6-mo avg ${formatGBP(totalBase)}${totalDeltaTxt}</div>
+      </div>
+      <div class="spend-summary-tile">
+        <div class="spend-summary-label">Subscriptions</div>
+        <div class="spend-summary-val">${formatGBP(subsTotal)}</div>
+        <div class="spend-summary-sub">${totalSpend > 0 ? ((subsTotal/totalSpend)*100).toFixed(0) : 0}% of spend</div>
+      </div>
+    </div>
+
+    <div class="spend-section-title">By category</div>
+    <div class="spend-category-list">${catHtml}</div>
+
+    <div class="spend-section-title">Top merchants</div>
+    <div class="spend-category-list">${merchantHtml}</div>
+  `;
+}
+
+// Strip noise off a description so similar lines aggregate as one merchant
+function cleanMerchantName(desc) {
+  let s = (desc || '').toUpperCase();
+  // Remove trailing card/ref numbers
+  s = s.replace(/\b\d{6,}\b/g, '');
+  // Remove date-like fragments
+  s = s.replace(/\d{2}[\/\-\.]\d{2}([\/\-\.]\d{2,4})?/g, '');
+  // Common type tokens
+  s = s.replace(/\b(DD|DEB|FPI|FPO|TFR|SO|CPT|COR|BGC|CHQ|ATM|REF|CARD)\b/g, '');
+  // Collapse whitespace + trim punctuation
+  s = s.replace(/[*,]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // Cap length so very long descriptions don't overflow
+  if (s.length > 40) s = s.slice(0, 40) + '…';
+  return s || '—';
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 async function loadTransactions() {
   const wrap    = document.getElementById('txn-list-wrap');
   const acctSel = document.getElementById('txn-account-filter');
