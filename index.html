@@ -4947,6 +4947,7 @@ function parseRevolutDate(str) {
   - The grand-total line "Total new spend transactions for ... 1,168.78" is skipped (no date).
 */
 function parseAmex(text) {
+  window.__lastAmexText = text;
   const transactions = [];
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
