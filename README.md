@@ -7,6 +7,8 @@ Minorph is a **personal CFO / monthly wealth-review tool** for Rudi Langford. It
 - **Net pay** rolling 6-month average (to smooth bonus-month variance)
 - **Savings rate** and **invested rate** per month
 - **Discretionary spend** vs 6-month baseline
+- **Pension / ANI tracker** — tax-year SIPP contribs grossed up + ANI vs £100k threshold
+- **Where it went** — monthly spend breakdown by category + top merchants
 - **Wealth snapshots** (manual monthly input of SIPP / ISA / CS2 valuations + contributions)
 - **CS2 investment log** (manual purchase entries)
 - **Goals tracking** (Amex Gold 40k point bonus, savings)
@@ -171,61 +173,25 @@ create table manual_investments (
 alter table manual_investments enable row level security;
 create policy "Users see own investments" on manual_investments
   for all using (auth.uid() = user_id);
-```
 
-### Seed data (replace UUID with your user ID from Auth → Users)
-```sql
-insert into accounts (user_id, name, bank, account_number, type) values
-  ('YOUR-USER-UUID', 'Main Current',    'Lloyds',  '39741868', 'current'),
-  ('YOUR-USER-UUID', 'Rent & Bills',    'Lloyds',  '48939060', 'current'),
-  ('YOUR-USER-UUID', 'Platinum Credit', 'Lloyds',  null,       'credit'),
-  ('YOUR-USER-UUID', 'Revolut Current', 'Revolut', '82501043', 'travel'),
-  ('YOUR-USER-UUID', 'Revolut Savings', 'Revolut', '82501043', 'savings'),
-  ('YOUR-USER-UUID', 'Amex Gold',       'Amex',    null,       'credit');
-
-insert into goals (user_id, name, target, current_amount, deadline, type) values
-  ('YOUR-USER-UUID', 'Amex Gold — 40k Points', 5000, 0, '2026-10-28', 'spend'),
-  ('YOUR-USER-UUID', 'Revolut Savings',        5000, 0, null,         'save');
+-- Added Session 10: per-user settings — currently just annual gross income for ANI estimate
+create table user_settings (
+  user_id              uuid primary key references auth.users,
+  annual_gross_income  numeric default 0,
+  tax_year_start_month int default 4,
+  tax_year_start_day   int default 6,
+  updated_at           timestamptz default now()
+);
+alter table user_settings enable row level security;
+create policy "Users see own settings" on user_settings
+  for all using (auth.uid() = user_id);
 ```
 
 ---
 
-## Deployment
+## Pulse Dashboard
 
-### Making changes
-1. Edit `index.html` locally (replace with file from Claude)
-2. GitHub Desktop → commit → push to `main`
-3. Cloudflare auto-deploys to `minorph.pages.dev`
-
-### If Cloudflare Git connection breaks
-Settings → Git repository → reconnect GitHub, then re-deploy.
-
-### To clear bad parse data from Supabase
-```sql
--- Delete most recent statement for a specific account (safe, doesn't touch others):
-DELETE FROM transactions
-WHERE statement_id = (
-  SELECT id FROM statements
-  WHERE account_id = (SELECT id FROM accounts WHERE name ILIKE '%account name%')
-  ORDER BY uploaded_at DESC LIMIT 1
-);
-DELETE FROM statements
-WHERE id = (
-  SELECT id FROM statements
-  WHERE account_id = (SELECT id FROM accounts WHERE name ILIKE '%account name%')
-  ORDER BY uploaded_at DESC LIMIT 1
-);
-
--- Nuke everything (parsed data only — wealth snapshots and goals untouched):
-DELETE FROM transactions;
-DELETE FROM statements;
-```
-
----
-
-## Pulse Dashboard (Session 9 build)
-
-The dashboard is built around five sections, top-to-bottom:
+The dashboard is built around six sections, top-to-bottom:
 
 ### 1. Net Worth hero
 Big gradient number (white → lilac). Below: date chip + breakdown chips (`SIPP £X`, `ISA £X`, `CS2 £X`, `Savings £X`). Sparkline canvas plots net worth over all snapshot months.
@@ -241,13 +207,26 @@ Big gradient number (white → lilac). Below: date chip + breakdown chips (`SIPP
 - **Invested (Month)** = (Fidelity outflows from Lloyds Main Current detected by description: `FSTL PRIMARY TRUST`, `FASL PRIM CLIENT B`, `FIDELITY`, `FIL SIPP`, `FIL ISA`, etc) + (manual CS2 purchases for the month). Sub = 6-mo avg.
 - **Discretionary** = total `amount_out` for the month, minus internal transfers, commission, bills, rent, energy, subscriptions, interest, groceries. Sub = 6-mo avg + % delta (red if up, green if down).
 
-### 3. Wealth Snapshot section
+### 3. Pension & ANI tracker (added Session 10)
+Card between the Pulse grid and Wealth Snapshot section. ⚙ Settings cog opens modal to set `annual_gross_income`.
+
+**Computation:**
+- **Tax year** = UK tax year (6 Apr → 5 Apr). Determined client-side from current date.
+- **SIPP cash YTD** = sum of `amount_out` on transactions where `description` matches `/FSTL\s*PRIMARY\s*TRUST/i` AND date falls within the current tax year.
+- **Grossed (×1.25)** = cash YTD × 1.25 (basic-rate tax relief that Fidelity claims back from HMRC).
+- **Estimated ANI** = `annual_gross_income − grossed YTD`.
+- Threshold = £100,000 (personal allowance taper begins). Bar runs 0 → £150k so threshold sits at ~67%.
+- ANI tint: green (>£5k below threshold) / amber (within £5k) / red (over).
+
+Hidden behind a setup prompt if `annual_gross_income` is 0.
+
+### 4. Wealth Snapshot section
 Card showing latest snapshot row. **＋ Add / Edit** button opens modal; selecting a month auto-prefills if a snapshot exists for that month (becomes an edit). Upsert key: `(user_id, month)`.
 
-### 4. CS2 Investments section
+### 5. CS2 Investments section
 List of purchases (latest 6 visible). **＋ Log purchase** button adds a new row. × button on each row deletes (with confirm).
 
-### 5. Net Pay month-on-month chart
+### 6. Net Pay month-on-month chart
 Flame-palette bar chart (orange `#ff8a3d` / light `#ffb267`). Fixed 140px canvas height. Total + monthly avg legend below.
 
 ### Dashboard month anchoring
@@ -257,6 +236,36 @@ Priority chain for the "current month" Pulse uses:
 3. Wall-clock current month
 
 This prevents the dashboard showing all-zero numbers in the gap between months when no new statement has been uploaded.
+
+---
+
+## Transactions Screen
+
+The Transactions tab has a segmented toggle at the top:
+
+### All transactions
+Linear list of transactions (current behaviour). Account filter + category chips (All / Subscriptions / CS2 / Bills / Income / Transfers). Pulls up to 200 transactions ordered by date.
+
+### Where it went (added Session 10)
+Monthly spend breakdown. Month picker populated from months that have any Infinity FPI deposit (i.e. "paid months"), defaults to latest.
+
+**Top section — two summary tiles:**
+- **Total Spend** — sum of qualifying outflows. Sub = 6-mo avg + % delta.
+- **Subscriptions** — sum of `subscription` category. Sub = % of total spend.
+
+**By category** — categories ranked by £ this month. Each row:
+- Icon (via `getCategoryIcon`)
+- Category name + horizontal bar (% of leader)
+- £ total + percentage of monthly spend + % delta vs 6-mo avg
+
+**Top merchants** — top 10 descriptions for the month, after `cleanMerchantName()` normalises out card refs, date fragments, type tokens, and trailing punctuation.
+
+**What counts as "spend":**
+- Excluded categories: `transfer`, `commission`, `interest`, `income`
+- Excluded by description (regardless of category): `FIDELITY | FIL\s*INV | FIL\s*LIFE | FIL\s*SIPP | FIL\s*ISA | FSTL PRIMARY TRUST | FASL PRIM CLIENT | REVOLUT | PLATINUM CREDIT | LLOYDS CREDIT CARD`
+- These are wealth movements or already-counted spend (credit card payoffs), not consumption
+
+**Data caching:** the first time the user opens the panel, all transactions are pulled into `spendCache` and reused across month picker changes.
 
 ---
 
@@ -355,6 +364,10 @@ Verified on real Lloyds Main Current statements:
 - `FSTL PRIMARY TRUST` (FPO type) → Fidelity SIPP
 - `FASL PRIM CLIENT B` (FPO type) → Fidelity S&S ISA
 
+### Pension contribution detection (used in ANI tile)
+Stricter than the Invested detection — only `FSTL PRIMARY TRUST` (the SIPP-specific code) counts toward the tax-year grossed-up figure. ISA contribs don't reduce ANI.
+- Date filter: within current UK tax year (6 Apr → 5 Apr).
+
 ### Key constants in index.html
 ```js
 const RENT_AND_BILLS_ACC_NUM = '48939060';
@@ -390,15 +403,17 @@ Category takes priority, then description patterns. Major coverage:
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
 - **Revolut Savings balance** — assumes last number on each line is the balance
 - **Sparkline early-state** — with only 1 snapshot, sparkline renders a flat dot; will populate as more snapshots accumulate
+- **"Other" / "Spending" buckets in Where It Went** — too many uncategorised merchants land here (e.g. GI GI FIRECRACKER, LC INTERNATIONAL, DAMIRA QUAYSIDE). Needs more merchant-specific rules in `CATEGORY_RULES`
+- **Hastings Insurance icon** — currently tagged `subscription` but displays with a generic icon in Top Merchants; icon lookup precedence may need tweaking
+- **ANI tracker assumes SIPP-only relief** — doesn't account for Gift Aid donations or other ANI-reducing items. Add if relevant later
 
 ---
 
 ## Things still to do (priority order)
 
-1. **Pension tracker / ANI estimate** — tax-year SIPP contribs grossed up vs £100k threshold
-2. **Spend leak finder** — category breakdown screen with % deltas, top merchants, subscription audit
-3. **Wealth long-game chart** — net worth line by account type
-4. **Fidelity PDF parser** (when historical statements available)
-5. **Amex Gold parser** test (28 May 2026)
-6. **Search/filter transactions by description**
-7. **Export transactions as CSV**
+1. **Categorisation cleanup** — add merchant rules + icons for repeat merchants surfaced by Where It Went; reconsider naming of `spending` bucket
+2. **Wealth long-game chart** — net worth line by account type
+3. **Fidelity PDF parser** (when historical statements available)
+4. **Amex Gold parser** test (28 May 2026)
+5. **Search/filter transactions by description**
+6. **Export transactions as CSV**

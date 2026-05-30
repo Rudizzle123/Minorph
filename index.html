@@ -4931,69 +4931,91 @@ function parseRevolutDate(str) {
   adjust the section header patterns or column offsets as needed.
   Console logs the raw extracted text to help debug mismatches.
 */
+/*
+  Amex Gold PDF layout (as extracted by PDF.js / verified on 29 Apr–28 May 2026 statement):
+  - Each transaction row: "May6 May6 DESCRIPTION ... AMOUNT"
+      • Two date columns mashed together (Transaction Date + Process Date), each "MonName Day"
+        with NO space between month and day and NO year (e.g. "May6", "May10").
+      • Year is NOT on the row — it's inferred from the statement period header
+        ("From 29 April to 28 May 2026") with a year-rollover guard for Dec→Jan periods.
+      • The GBP amount is the LAST money-shaped token on the line.
+      • Foreign-currency rows put the original-currency amount before the GBP amount, so we
+        always take the last number.
+  - Sub-detail lines ("GOODS", "TICKET NUMBER: ... PASSENGER NAME:") have no leading date → skipped.
+  - Credits/payments would show as a negative amount or sit under a "Payments and Credits"
+    heading; this statement has none, but both paths are handled.
+  - The grand-total line "Total new spend transactions for ... 1,168.78" is skipped (no date).
+*/
 function parseAmex(text) {
   const transactions = [];
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Date pattern: "01 Apr 26" (same as Lloyds — two-digit year)
-  const DATE_START_RE = /^(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2})\s+(.+)/i;
+  const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
 
-  // Sub-rows to skip: foreign currency lines and rate lines
-  const SKIP_RE = /^(USD|EUR|AUD|CAD|JPY|CHF|SEK|NOK|DKK|SGD|HKD|NZD|Rate\s|Exchange)/i;
+  // Row date: "May6" or "May 6" optionally followed by the duplicate process date.
+  // Capture the first MonName+Day, then the remainder of the line.
+  const ROW_RE = /^([A-Za-z]{3,9})\s*(\d{1,2})\b(.*)$/;
 
-  // Section headers
-  const SECTION_CHARGES  = /new\s+charges|transactions|purchases/i;
-  const SECTION_PAYMENTS = /payments?\s+and\s+credits?|payments?/i;
-  const SECTION_FEES     = /fees?\s+and\s+adjust|interest\s+charge/i;
+  // Lines that look like a row but are actually noise/sub-detail.
+  const NOISE_RE = /ticket number|passenger name|^goods$|total new spend|statement of account|membership number|transaction\s+details|prepared for|how you can pay/i;
 
-  let section = 'charges'; // default — most lines will be charges
+  const SECTION_PAYMENTS = /payments?\s+and\s+credits?/i;
+
+  // Infer statement year(s) from the period header: "From 29 April to 28 May 2026"
+  let endYear = new Date().getFullYear();
+  const periodMatch = text.match(/to\s+\d{1,2}\s+([A-Za-z]+)\s+(\d{4})/i);
+  let endMonth = null;
+  if (periodMatch) {
+    endYear  = parseInt(periodMatch[2]);
+    endMonth = MONTHS[periodMatch[1].toLowerCase().slice(0,3)] || null;
+  }
+
+  let section = 'charges';
 
   for (const line of lines) {
-    // Update section context
     if (SECTION_PAYMENTS.test(line) && line.length < 40) { section = 'payments'; continue; }
-    if (SECTION_CHARGES.test(line)  && line.length < 40) { section = 'charges';  continue; }
-    if (SECTION_FEES.test(line)     && line.length < 40) { section = 'fees';     continue; }
+    if (NOISE_RE.test(line)) continue;
 
-    // Skip foreign currency sub-rows
-    if (SKIP_RE.test(line)) continue;
+    const rowMatch = line.match(ROW_RE);
+    if (!rowMatch) continue;
 
-    const dateMatch = line.match(DATE_START_RE);
-    if (!dateMatch) continue;
+    const monTok = rowMatch[1].toLowerCase().slice(0,3);
+    const month  = MONTHS[monTok];
+    if (!month) continue;                       // not a real date row (e.g. "American Express")
+    const day = parseInt(rowMatch[2]);
 
-    const date = parseLloydsDate(dateMatch[1]); // same format — reuse Lloyds date parser
-    if (!date) continue;
+    let rest = rowMatch[3];
 
-    const rest = dateMatch[2];
+    // Strip the second (process) date that follows — it may differ from the transaction
+    // date (e.g. "May17 May18 ...") so match any MonName+Day, not just an identical token.
+    rest = rest.replace(/^\s*[A-Za-z]{3,9}\s*\d{1,2}\b/, '');
 
-    // Extract all numeric amounts from the rest of the line
-    // Amex amounts may be negative (credits) — match optional leading minus
+    // All money-shaped tokens; GBP is always the last one.
     const amountMatches = [...rest.matchAll(/-?[\d,]+\.\d{2}/g)];
-    if (amountMatches.length === 0) continue;
+    if (amountMatches.length === 0) continue;   // no amount → not a transaction row
 
-    // The GBP amount is always the last number on the line.
-    // If there are 2+ numbers, the first is likely a foreign currency amount — skip it.
     const rawAmount = amountMatches[amountMatches.length - 1][0].replace(/,/g, '');
-    const amount    = parseFloat(rawAmount);
+    const amount = parseFloat(rawAmount);
     if (isNaN(amount)) continue;
 
-    // Description: everything before the first amount, stripped of noise
+    // Description = everything before the first amount token.
     const firstAmtIdx = rest.indexOf(amountMatches[0][0]);
-    let desc = rest.slice(0, firstAmtIdx).trim().replace(/\s+/g, ' ');
-    if (!desc) desc = rest.replace(/-?[\d,]+\.\d{2}/g, '').trim().replace(/\s+/g, ' ');
+    let desc = rest.slice(0, firstAmtIdx).replace(/\s+/g, ' ').trim();
+    desc = desc.replace(/^[-\s]+|[-\s]+$/g, '');
+    if (!desc) continue;
 
-    // Determine direction:
-    //   - Negative amount OR in payments section → money coming back (amountIn)
-    //   - Positive amount in charges/fees section → spend (amountOut)
+    // Year rollover: if the row month is after the statement end month, it belongs to the
+    // previous calendar year (e.g. a Dec charge on a Jan statement).
+    let year = endYear;
+    if (endMonth !== null && month > endMonth) year = endYear - 1;
+    const date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+    // Direction: negative amount or payments section → money in; otherwise spend.
     let amountIn = 0, amountOut = 0;
-    if (amount < 0 || section === 'payments') {
-      amountIn  = Math.abs(amount);
-    } else {
-      amountOut = Math.abs(amount);
-    }
+    if (amount < 0 || section === 'payments') amountIn = Math.abs(amount);
+    else amountOut = Math.abs(amount);
 
-    // Amex doesn't have Lloyds-style type codes — we synthesise one
-    // so the rest of the categorisation pipeline has something to work with.
-    const type = section === 'payments' ? 'PAY' : (section === 'fees' ? 'FEE' : 'PUR');
+    const type = (amount < 0 || section === 'payments') ? 'PAY' : 'PUR';
 
     transactions.push({
       date,
@@ -5001,14 +5023,16 @@ function parseAmex(text) {
       type,
       amountIn,
       amountOut,
-      runningBalance: null, // Amex statements have no per-row balance
+      runningBalance: null,
     });
   }
 
   console.log(`[parseAmex] parsed ${transactions.length} transactions`);
-
-  // If we got nothing, dump the raw text so it's easy to debug format differences
-  if (transactions.length === 0) {
+  if (transactions.length) {
+    console.log('[parseAmex] sample:', transactions.slice(0, 3));
+    const total = transactions.reduce((s,t) => s + t.amountOut - t.amountIn, 0);
+    console.log(`[parseAmex] net spend total: £${total.toFixed(2)}`);
+  } else {
     console.warn('[parseAmex] zero results — raw text follows:');
     console.warn(text.slice(0, 2000));
   }

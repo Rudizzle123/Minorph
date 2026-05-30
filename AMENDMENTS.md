@@ -1,4 +1,4 @@
-# Minorph — Project Amendments (Session 9)
+# Minorph — Project Amendments (Session 10)
 
 Update the project files before starting a new chat.
 
@@ -6,57 +6,49 @@ Update the project files before starting a new chat.
 
 ## Files to replace
 
-### 1. `index.html` → replace entirely (use the most recent output from this session)
+### 1. `index.html` → replace entirely
 
-This session was a strategy + UX session. The dashboard has been rebuilt around a clearer vision: Minorph is now a **monthly personal CFO dashboard**, not a budgeting app. Key changes:
+Two things shipped this session:
 
-- **Dashboard renamed conceptually to "Pulse"** — still the first tab, still labelled "Dashboard" in the nav. Old Total Balance hero, account cards, and commission section are all gone.
-- **Net Worth hero** — gradient white→lilac headline number, soft glow, with date chip + breakdown chips (SIPP / ISA / CS2 / Savings) below.
-- **Sparkline canvas** under the net worth number — wired up, plots all wealth snapshots over time. Container is fixed-height (56px) so Chart.js can't blow up the layout.
-- **4-tile Pulse grid** — Net Pay (Month), Savings Rate, Invested (Month), Discretionary. Each shows current-month value + 6-month rolling avg. Discretionary shows % delta vs 6-mo avg with colour.
-- **Wealth Snapshot section** — manual monthly input card for SIPP balance, SIPP YTD contrib (cash), ISA balance, ISA YTD contrib, CS2 portfolio value. Tap "＋ Add / Edit" to add or edit any month.
-- **CS2 Investments section** — manual purchase log (date / amount / notes). Each entry counts toward "Invested this month".
-- **Net Pay month-on-month chart** — replaces the old commission chart. **Flame palette** (orange `#ff8a3d` / light `#ffb267`) instead of green. Fixed 140px height. Shows total + monthly avg legend.
-- **Dashboard period anchoring** — header date and all 4 Pulse tiles anchor on the latest month with Infinity FPI data (falls back to latest statement, then current month). This stops the dashboard showing empty £0 numbers for a current month that hasn't been uploaded yet.
-- **Fidelity merchant detection** — invested tracker now detects `FSTL PRIMARY TRUST` (SIPP) and `FASL PRIM CLIENT B` (ISA) on Lloyds Main Current transactions, plus generic `FIDELITY` / `FIL SIPP` / `FIL ISA` patterns.
+**A) Pension / ANI Tracker (Pulse dashboard)**
+- New card between the Pulse grid and Wealth Snapshot section
+- Auto-aggregates `FSTL PRIMARY TRUST` (Fidelity SIPP) outflows from Lloyds Main Current over the current UK tax year (6 Apr → 5 Apr)
+- Grosses them up ×1.25 (basic-rate relief)
+- Subtracts grossed total from `annual_gross_income` (stored in new `user_settings` table) to estimate ANI
+- Visual progress bar with £100k threshold line; ANI tinted green / amber (<£5k headroom) / red (over)
+- Settings cog opens modal to set/edit the annual gross income figure (single field — base + expected bonuses)
+- Verified: TY 2026/27 shows £1,700 cash → £2,125 grossed → £140k − £2,125 = £137,875 ANI ✅
+
+**B) Where It Went (Transactions tab)**
+- New segmented toggle at the top of Transactions: **All transactions** vs **Where it went**
+- "Where it went" panel includes:
+  - Month picker populated from months with Infinity FPI deposits
+  - Total Spend + Subscriptions summary tiles (with 6-mo avg + delta %)
+  - "By category" list — ranked bars, % of total, % delta vs 6-mo avg
+  - "Top merchants" list — top 10 descriptions, normalised by `cleanMerchantName()`
+- Spend totals exclude: internal transfers, commission, interest, income categories
+- Also excludes by description pattern: `FIDELITY | FIL\s*INV | FIL\s*LIFE | FIL\s*SIPP | FIL\s*ISA | FSTL PRIMARY TRUST | FASL PRIM CLIENT | REVOLUT | PLATINUM CREDIT | LLOYDS CREDIT CARD` — these are wealth movements / credit-card payoffs, not consumption
+- All transactions are fetched once and cached client-side in `spendCache`
 
 ### 2. `README.md` → replace entirely
-Updated schema (two new tables), parser status, Pulse dashboard documentation.
+Schema updated (new `user_settings` table), Pulse dashboard now documents the pension card, Transactions docs now cover the Where It Went breakdown.
 
-### 3. Project instructions → no change this session (rules and workflow are unchanged)
+### 3. Project instructions → no change this session.
 
 ---
 
-## Pending SQL migrations (run in Supabase SQL editor before testing)
+## Pending SQL migration (run in Supabase SQL editor before testing)
 
 ```sql
--- Wealth snapshots — monthly manual entry of SIPP / ISA / CS2 balances + contribs
-create table if not exists wealth_snapshots (
-  id                uuid primary key default gen_random_uuid(),
-  user_id           uuid references auth.users not null,
-  month             date not null,
-  sipp_balance      numeric default 0,
-  sipp_contrib_cash numeric default 0,
-  isa_balance       numeric default 0,
-  isa_contrib_cash  numeric default 0,
-  cs2_balance       numeric default 0,
-  unique (user_id, month)
+create table if not exists user_settings (
+  user_id              uuid primary key references auth.users,
+  annual_gross_income  numeric default 0,
+  tax_year_start_month int default 4,
+  tax_year_start_day   int default 6,
+  updated_at           timestamptz default now()
 );
-alter table wealth_snapshots enable row level security;
-create policy "Users see own snapshots" on wealth_snapshots
-  for all using (auth.uid() = user_id);
-
--- Manual investments — CS2 purchase log (and any future manual investment types)
-create table if not exists manual_investments (
-  id      uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users not null,
-  type    text not null,
-  date    date not null,
-  amount  numeric not null,
-  notes   text
-);
-alter table manual_investments enable row level security;
-create policy "Users see own investments" on manual_investments
+alter table user_settings enable row level security;
+create policy "Users see own settings" on user_settings
   for all using (auth.uid() = user_id);
 ```
 
@@ -74,8 +66,11 @@ create policy "Users see own investments" on manual_investments
 - Revolut Current: May 2026 ✅
 - Revolut Savings: May 2026 ✅
 - Amex Gold: first statement arrives 28 May 2026
-- **Wealth snapshot for Apr/May 2026** seeded: SIPP £3,827.70 / ISA £39,705.60 / CS2 £38,919.72
+- Wealth snapshot for Apr/May 2026 seeded
 - Net worth (Apr 2026): **£84,142.32**
+- Annual gross income: **£140,000** (working estimate — base £35k + expected bonuses up to ~£105k)
+- TY 2026/27 ANI estimate: **£137,875** (only £1,700 SIPP cash so far — needs aggressive contribs to get under £100k)
+- TY 2026/27 SIPP cash YTD: **£1,700** → grossed **£2,125**
 
 ---
 
@@ -84,57 +79,44 @@ create policy "Users see own investments" on manual_investments
 | Parser | Status |
 |---|---|
 | Lloyds Current | ✅ Verified — all months Nov 2025–Apr 2026 |
-| Lloyds Credit | ✅ Verified — payments green, purchases red |
+| Lloyds Credit | ✅ Verified |
 | Rent & Bills | ✅ Verified |
-| Revolut Current | ✅ Verified — 20 transactions, internal transfers excluded |
-| Revolut Savings | ✅ Verified — 46 transactions, interest tagged correctly |
+| Revolut Current | ✅ Verified |
+| Revolut Savings | ✅ Verified |
 | Amex Gold | Speculative — first statement arrives 28 May 2026 |
 | Fidelity (SIPP + ISA quarterly statements) | ⚠️ Not yet built — manual snapshot input for now |
 
 ---
 
-## The Vision (locked this session)
-
-Minorph is a **monthly wealth-review tool**, not a daily budgeting app. The four questions it answers:
-
-1. **Where am I leaking money?** — Discretionary tile, category breakdowns (future Spend screen)
-2. **Am I getting ahead?** — Net Worth + sparkline, Net Pay rolling avg, Savings Rate, Invested Rate
-3. **Am I optimising tax?** — Pension tracker (next session) showing tax-year SIPP contribs grossed up + ANI vs £100k threshold
-4. **Am I on pace for Amex points?** — existing Goals screen
-
-**Wealth model:** Net worth = SIPP + S&S ISA + CS2 + Revolut Savings only. Current accounts and credit cards are operational, not wealth.
-
-**Income model:** All Infinity Renewables FPI = net pay (PAYE salary + bonus). "Commission" is just the legacy tag — display now says "Net Pay".
-
-**Pension model:** Personal SIPP contributions via Fidelity. Cash contribution × 1.25 = grossed-up figure that reduces Adjusted Net Income. Target: keep ANI below £100k.
-
----
-
 ## Things to do next session (priority order)
 
-1. **Pension tracker / ANI estimate** — tax-year SIPP contribution total, grossed up by ÷0.8, subtracted from estimated gross income, displayed vs £100k threshold. Auto-detect from Lloyds FSTL transactions (already partially wired for invested rate, just needs the pension-specific aggregation + tax year boundaries).
-2. **Spend leak finder (Screen 2)** — category breakdown for the month, ranked by £, with % delta vs 6-mo avg. Top 10 merchants. Subscription audit total.
-3. **Wealth long-game chart (Screen 3)** — net worth line chart broken down by SIPP / ISA / CS2 / Savings.
-4. **Fidelity PDF parser** — once Rudi has a few historic quarterly statements, build a parser. Statement structure is known: ISA + SIPP + Cash Mgmt sections in one PDF, dates as `DD.MM.YY`, contribution lines start with "Money paid in".
-5. **Amex Gold parser** — test on 28 May 2026 statement
-6. **Search/filter transactions by description**
-7. **Export transactions as CSV**
+1. **Categorisation cleanup** — the Where It Went view exposed several uncategorised merchants and a few miscategorised ones. Specifics to look at:
+   - **"Spending" bucket is too generic** — DEB fallback dumps a lot into it (e.g. `GI GI FIRECRACKER £1,045`, `LC INTERNATIONAL £1,019`, `DAMIRA QUAYSIDE`, `RORY PACK`). Need to either add merchant rules for the regulars or rename "spending" to something clearer (e.g. "uncategorised")
+   - **"Other" bucket** — Bills/CS2 category rules look fine but a chunk of legitimate spend is still falling through to `other`. Likely Amex purchases (when they land) and one-offs
+   - **Hastings Insurance** — currently tagged as subscription (correct intent), but appears in Top Merchants list with the bulb icon — icon logic for subscription category is mis-routing. Worth a look
+   - **Top merchant cleanup** — `cleanMerchantName()` is fine but a few descriptions still come through as partial company names (`FASL PRIM CLIENT B`, `FSTL PRIMARY TRUST` — these now excluded so not visible, but the pattern applies to others)
+   - Add merchant rules + icons for: GI GI FIRECRACKER, LC INTERNATIONAL, DAMIRA QUAYSIDE, RORY PACK, CSFLOAT INC
+2. **Wealth long-game chart (Screen 3)** — net worth line chart broken down by SIPP / ISA / CS2 / Savings
+3. **Fidelity PDF parser** — once Rudi has a few historic quarterly statements
+4. **Amex Gold parser test** — 28 May 2026 statement arriving
+5. **Search/filter transactions by description**
+6. **Export transactions as CSV**
 
 ---
 
 ## Open questions for next session
 
-- Rudi's pension contributions are personal Fidelity SIPP (not salary sacrifice). When building ANI tracker, need to know if he wants estimated gross income hard-coded, derived from net pay × tax-multiplier, or as another input.
-- Whether savings rate denominator should stay as net pay only, or eventually include investment outflows too (currently: savings deposits / net pay).
+- For ANI tracker: Rudi will update `annual_gross_income` post self-assessment once a year. Should there also be a "lock" toggle to mark TY as final once self-assessment is filed? (Probably no — keep it simple, just an editable number.)
+- Whether to add a manual "add SIPP contribution" entry (for months where statement isn't uploaded yet), or wait for the Fidelity parser to land.
 
 ---
 
 ## Rules agreed (see project instructions for full list)
 
-1. **One instruction at a time** — give the single highest-confidence fix, wait for result, then move on.
-2. **No code explanations in chat** — output the file, tell him what to do.
-3. **HTML changes go in the file** — never paste big code blocks into the message.
-4. **Standard workflow** — download → replace local → GitHub Desktop → push → Cloudflare auto-deploys.
-5. **Read `AMENDMENTS.md` and `README.md` at session start** before touching anything.
-6. **Parser failures: read the console first** — never guess, always ask for output before changing code.
-7. **Big architectural/UX decisions are vision conversations** — exception to rule 5: when Rudi asks "what should we build next" or "give me your take on X", break the brevity rule and have a proper design discussion.
+1. One instruction at a time
+2. No code explanations in chat
+3. HTML changes go in the file
+4. Standard workflow: download → replace local → GitHub Desktop → push → Cloudflare auto-deploys
+5. Read `AMENDMENTS.md` and `README.md` at session start
+6. Parser failures: read the console first
+7. Big architectural/UX decisions: break the brevity rule and have a proper design discussion
