@@ -320,11 +320,19 @@ Same columns as Revolut Current. Mostly Gross Interest (daily) + Deposit/Withdra
 - Interest tagged `INT` type → categorised as `interest`
 - Deposit tagged `DEP`, withdrawal tagged `WDL`
 
-### Amex Gold (parseAmex) — ⚠️ speculative, untested
-- Statement closes 28th of month — first due 28 May 2026
-- Sections: "New Charges" / "Payments" / "Fees and Adjustments"
-- Date format: `01 Apr 26` (same as Lloyds, reuses `parseLloydsDate`)
-- If `[parseAmex] parsed 0 transactions`, raw text is dumped to console for debugging
+### Amex Gold (parseAmex) — ✅ verified (29 Apr–28 May 2026 statement)
+Real format differs completely from the original speculative parser. Key facts as PDF.js extracts it:
+- Each row: `MonName Day  MonName Day  DESCRIPTION` then the **GBP amount on its own separate line** (PDF.js floats the amount column down). Dates are `May 6` style — **no year on the row**.
+- Two date columns per row (Transaction Date + Process Date); the second is stripped. They can differ (`May 17 May 18`).
+- Year inferred from the period header `From 29 April to 28 May 2026`, with a rollover guard (a row month later than the statement end month belongs to the previous year — e.g. Dec charge on a Jan statement).
+- GBP amount is always the **last** money token (foreign-currency rows put the original amount first).
+- Sub-detail lines (`GOODS`, `TICKET NUMBER: … PASSENGER NAME:`) are noise. **But** a real row sometimes shares a line after a noise fragment (e.g. `…PASSENGER NAME: May 25 May 25 BACK MARKET BRISTOL 492.49`) — the parser reclaims the tail from the first date token rather than discarding the whole line.
+- Grand-total line `Total new spend transactions for …` skipped (no leading date).
+- Credits/payments handled via negative amount or a `Payments and Credits` section header (none in this statement).
+
+**Strategy:** indexed line loop; on a date row with no inline amount, look ahead up to 3 lines (skipping noise) for an amount-only line and consume it. Console logs parsed count, sample rows, and net spend total.
+
+**Verified:** 16 transactions, net spend total £1,168.78 (matches statement closing balance).
 
 ### Fidelity (not built yet)
 Quarterly statements covering ISA + SIPP + Cash Management in one PDF. Known structure:
@@ -397,7 +405,6 @@ Category takes priority, then description patterns. Major coverage:
 
 ## Known issues / watch points
 
-- **Amex parser** — speculative, untested until 28 May 2026 statement
 - **Fidelity parser** — not built yet; manual snapshot entry is the stopgap
 - **Lloyds TYPE collisions** — TYPE set is intentionally narrowed. If a future statement uses a code outside the known set, that row will be skipped
 - **Grocery description matching** — Side A requires description to contain `39741868` or `R LANGFORD`; verify on real Rent & Bills data
@@ -414,6 +421,5 @@ Category takes priority, then description patterns. Major coverage:
 1. **Categorisation cleanup** — add merchant rules + icons for repeat merchants surfaced by Where It Went; reconsider naming of `spending` bucket
 2. **Wealth long-game chart** — net worth line by account type
 3. **Fidelity PDF parser** (when historical statements available)
-4. **Amex Gold parser** test (28 May 2026)
-5. **Search/filter transactions by description**
-6. **Export transactions as CSV**
+4. **Search/filter transactions by description**
+5. **Export transactions as CSV**

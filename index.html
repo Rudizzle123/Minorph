@@ -4251,6 +4251,46 @@ async function loadGoals() {
     return;
   }
 
+  // Amex 40k goal progress is computed LIVE from Amex Gold purchases within the 6-month
+  // bonus window (window ends at the goal deadline), not from the static goals.current_amount.
+  // Excludes payments/refunds (amount_in) and internal transfers.
+  async function computeAmexSpend(goal) {
+    const { data: acc } = await sb
+      .from('accounts')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .ilike('name', '%amex%')
+      .limit(1)
+      .maybeSingle();
+    if (!acc) return 0;
+
+    let windowStart = null;
+    if (goal.deadline) {
+      const d = new Date(goal.deadline);
+      d.setMonth(d.getMonth() - 6);
+      windowStart = d.toISOString().slice(0, 10);
+    }
+
+    let q = sb
+      .from('transactions')
+      .select('amount_out, is_internal_transfer, date')
+      .eq('account_id', acc.id);
+    if (windowStart) q = q.gte('date', windowStart);
+
+    const { data: txns } = await q;
+    if (!txns) return 0;
+    return txns
+      .filter(t => !t.is_internal_transfer)
+      .reduce((sum, t) => sum + (parseFloat(t.amount_out) || 0), 0);
+  }
+
+  // Override stored current_amount for the Amex goal with the live figure.
+  for (const g of goals) {
+    if (g.name.toLowerCase().includes('amex')) {
+      g.current_amount = await computeAmexSpend(g);
+    }
+  }
+
   let html = '';
   goals.forEach(g => {
     const pct     = Math.min(100, ((parseFloat(g.current_amount) / parseFloat(g.target)) * 100)).toFixed(1);
@@ -4947,7 +4987,6 @@ function parseRevolutDate(str) {
   - The grand-total line "Total new spend transactions for ... 1,168.78" is skipped (no date).
 */
 function parseAmex(text) {
-  window.__lastAmexText = text;
   const transactions = [];
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
