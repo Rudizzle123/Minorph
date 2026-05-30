@@ -4971,32 +4971,56 @@ function parseAmex(text) {
     endMonth = MONTHS[periodMatch[1].toLowerCase().slice(0,3)] || null;
   }
 
+  const AMOUNT_RE = /-?[\d,]+\.\d{2}/g;
+  // A line that is ONLY an amount (PDF.js floats the GBP column onto its own line).
+  const AMOUNT_ONLY_RE = /^-?[\d,]+\.\d{2}$/;
+
   let section = 'charges';
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
     if (SECTION_PAYMENTS.test(line) && line.length < 40) { section = 'payments'; continue; }
-    if (NOISE_RE.test(line)) continue;
+
+    // A noise fragment (e.g. "TICKET NUMBER: … PASSENGER NAME:") sometimes shares a line with
+    // the next real row. Strip a leading noise span back to the first date token rather than
+    // discarding the whole line.
+    if (NOISE_RE.test(line)) {
+      const reclaimed = line.match(/[A-Za-z]{3,9}\s*\d{1,2}\b.*$/);
+      if (reclaimed && MONTHS[reclaimed[0].toLowerCase().slice(0,3)]) line = reclaimed[0];
+      else continue;
+    }
 
     const rowMatch = line.match(ROW_RE);
     if (!rowMatch) continue;
 
-    const monTok = rowMatch[1].toLowerCase().slice(0,3);
-    const month  = MONTHS[monTok];
+    const month = MONTHS[rowMatch[1].toLowerCase().slice(0,3)];
     if (!month) continue;                       // not a real date row (e.g. "American Express")
     const day = parseInt(rowMatch[2]);
 
     let rest = rowMatch[3];
 
     // Strip the second (process) date that follows — it may differ from the transaction
-    // date (e.g. "May17 May18 ...") so match any MonName+Day, not just an identical token.
+    // date (e.g. "May 17 May 18 ...") so match any MonName+Day, not just an identical token.
     rest = rest.replace(/^\s*[A-Za-z]{3,9}\s*\d{1,2}\b/, '');
 
-    // All money-shaped tokens; GBP is always the last one.
-    const amountMatches = [...rest.matchAll(/-?[\d,]+\.\d{2}/g)];
-    if (amountMatches.length === 0) continue;   // no amount → not a transaction row
+    // PDF.js usually floats the GBP amount onto the NEXT line. If this row has no amount,
+    // look ahead past noise lines (GOODS, TICKET NUMBER…) for the next amount-only line.
+    let amountMatches = [...rest.matchAll(AMOUNT_RE)];
+    if (amountMatches.length === 0) {
+      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        const peek = lines[j];
+        if (NOISE_RE.test(peek)) continue;
+        if (AMOUNT_ONLY_RE.test(peek)) {
+          rest = rest + ' ' + peek;
+          amountMatches = [...rest.matchAll(AMOUNT_RE)];
+          i = j;                                // consume the amount line
+        }
+        break;                                  // stop at first real line either way
+      }
+    }
+    if (amountMatches.length === 0) continue;   // still nothing → skip
 
-    const rawAmount = amountMatches[amountMatches.length - 1][0].replace(/,/g, '');
-    const amount = parseFloat(rawAmount);
+    const amount = parseFloat(amountMatches[amountMatches.length - 1][0].replace(/,/g, ''));
     if (isNaN(amount)) continue;
 
     // Description = everything before the first amount token.
