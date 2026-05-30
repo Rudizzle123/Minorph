@@ -4284,10 +4284,32 @@ async function loadGoals() {
       .reduce((sum, t) => sum + (parseFloat(t.amount_out) || 0), 0);
   }
 
+  // Revolut Savings goal progress is the live balance (latest statement closing_balance),
+  // not the static goals.current_amount.
+  async function computeSavingsBalance() {
+    const { data: acc } = await sb
+      .from('accounts')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .ilike('name', '%revolut savings%')
+      .limit(1)
+      .maybeSingle();
+    if (!acc) return 0;
+    const { data } = await sb
+      .from('statements')
+      .select('closing_balance, period_end')
+      .eq('account_id', acc.id)
+      .order('period_end', { ascending: false })
+      .limit(1);
+    return (data && data[0]) ? (parseFloat(data[0].closing_balance) || 0) : 0;
+  }
+
   // Override stored current_amount for the Amex goal with the live figure.
   for (const g of goals) {
     if (g.name.toLowerCase().includes('amex')) {
       g.current_amount = await computeAmexSpend(g);
+    } else if (g.name.toLowerCase().includes('saving')) {
+      g.current_amount = await computeSavingsBalance();
     }
   }
 
